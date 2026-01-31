@@ -4,7 +4,7 @@ _default:
 
 # Run all checks
 check *args:
-    @just test {{args}}
+    @just test {{ args }}
     @just lint
 
 # Format the code
@@ -13,7 +13,7 @@ fmt:
 
 # Run the tests
 test *args:
-    @uv run pytest {{args}}
+    @uv run pytest {{ args }}
 
 # Run the linters
 lint:
@@ -27,7 +27,3 @@ lint:
 fix:
     @uv run ruff check --fix
     @just fmt
-
-# Serve docs
-doc:
-    @uv run pdoc circle

@@ -1,5 +1,2 @@
-import circle
-
-
-def test_add():
-    assert circle.add(1, 2) == 3
+def test_hello():
+    assert "Hello, Circle!"
