@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 from collections.abc import Set
+from datetime import datetime, timedelta, timezone
 
 from . import api, api_types, cache, config, git
 
@@ -70,13 +71,16 @@ class AppService:
         if workflows is None:
             workflows = await self.api_client.get_workflows(pipeline_id)
             # No concept of pipeline completion.
-            # Infer completion from workflow completion.
-            # Assumption: No new workflows will be created later.
-            ttl = (
-                None
-                if all(w.is_completed for w in workflows)
-                else self.in_progress_ttl_seconds
+            # Infer completion based on workflows.
+            # Cache indefinitely only if all workflows stopped more than one minutes ago
+            cache_indefinitely = len(workflows) > 0 and all(
+                w.is_completed
+                and w.stopped_at is not None
+                and w.stopped_at < datetime.now(timezone.utc) - timedelta(minutes=1)
+                for w in workflows
             )
+
+            ttl = None if cache_indefinitely else self.in_progress_ttl_seconds
             self.api_cache.set(cache_key, workflows, ttl=ttl)
         return workflows
 
@@ -159,3 +163,7 @@ class AppService:
             ttl = None if workflow.is_completed else self.in_progress_ttl_seconds
             self.api_cache.set(cache_key, jobs, ttl=ttl)
         return jobs
+
+
+def _dt_less_than(dt: datetime | None, dt2: datetime) -> bool:
+    return dt is not None and dt < dt2
