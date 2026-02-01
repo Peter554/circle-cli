@@ -30,6 +30,7 @@ class DiskcacheCache:
     @functools.cached_property
     def _cache(self) -> diskcache.Cache:
         cache_dir = platformdirs.user_cache_dir("circle-cli")
+        logger.info("Diskcache using directory %s", cache_dir)
         size_limit = self.size_limit_mb * 1024 * 1024
         return diskcache.Cache(
             cache_dir,
