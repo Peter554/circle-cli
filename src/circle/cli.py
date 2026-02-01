@@ -19,6 +19,7 @@ jobs_app = cyclopts.App(name="jobs")
 app.command(jobs_app, alias=["job", "j"])
 
 
+@pipelines_app.default
 @pipelines_app.command(name="list")
 async def pipelines_list(
     *,
@@ -44,6 +45,7 @@ async def pipelines_list(
     output.print_pipelines(pipelines, common_flags.output_format)
 
 
+@workflows_app.default
 @workflows_app.command(name="list")
 async def workflows_list(
     *,
@@ -63,6 +65,7 @@ async def workflows_list(
     output.print_workflows(workflows, common_flags.output_format)
 
 
+@jobs_app.default
 @jobs_app.command(name="list")
 async def jobs_list(
     *,
