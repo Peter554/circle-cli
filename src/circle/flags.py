@@ -42,3 +42,11 @@ class CommonFlags:
             help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         ),
     ] = "WARNING"
+    no_cache: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name=["--no-cache"],
+            help="Disable caching",
+            negative=(),
+        ),
+    ] = False

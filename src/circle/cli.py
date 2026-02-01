@@ -3,7 +3,7 @@ from typing import Annotated
 
 import cyclopts
 
-from . import api, config, flags, output, service
+from . import api, api_types, cache, config, flags, output, service
 
 app = cyclopts.App(
     name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
@@ -81,12 +81,22 @@ async def jobs_list(
             negative=(),
         ),
     ] = None,
+    status: Annotated[
+        list[api_types.JobStatus] | None,
+        cyclopts.Parameter(
+            name=["--status", "-s"],
+            help="Filter jobs by status. Can be specified multiple times.",
+            negative=(),
+        ),
+    ] = None,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show jobs for workflows"""
     _setup_logging(common_flags)
     app_service = _get_app_service(common_flags)
-    jobs = await app_service.get_jobs(pipeline, workflow)
+    jobs = await app_service.get_jobs(
+        pipeline, workflow, set(status) if status else None
+    )
     output.print(jobs)
 
 
@@ -100,7 +110,12 @@ def _setup_logging(common_flags: flags.CommonFlags) -> None:
 def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
     app_config = config.load_config(common_flags)
     api_client = api.APIClient(app_config.token)
-    return service.AppService(app_config, api_client)
+    if common_flags.no_cache:
+        print("NOCACHE")
+        api_cache = cache.NullCache()
+    else:
+        api_cache = cache.DiskcacheCache()
+    return service.AppService(app_config, api_client, api_cache)
 
 
 def main() -> None:
