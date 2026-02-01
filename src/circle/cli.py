@@ -88,7 +88,7 @@ async def jobs_list(
 
 def _get_app_service(config_flags: config.AppConfigFlags) -> service.AppService:
     app_config = config.load_config(config_flags)
-    api_client = api.APIClient(app_config.token)
+    api_client = api.BasicAPIClient(app_config.token)
     return service.AppService(app_config, api_client)
 
 
