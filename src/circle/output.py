@@ -52,7 +52,7 @@ def print_pipelines(
 [bold]State:[/bold] {state}
 [bold]Commit:[/bold] {commit_hash} {commit}
 [bold]Workflows:[/bold] {workflow_status}
-[bold]Link:[/bold] {url}"""
+[bold]Link:[/bold] [link={url}]{url}[/link]"""
 
             panel = Panel(
                 content,
