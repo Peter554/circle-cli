@@ -17,10 +17,11 @@ def print(o: object) -> None:
 
 
 def print_pipelines(
-    pipelines: list[api_types.Pipeline], output_format: flags.OutputFormat
+    pipelines: list[tuple[api_types.Pipeline, list[api_types.Workflow]]],
+    output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        data = [p.model_dump(mode="json") for p in pipelines]
+        data = [p.model_dump(mode="json") for p, _ in pipelines]
         console.print(json.dumps(data, indent=2))
     else:
         if not pipelines:
@@ -28,19 +29,29 @@ def print_pipelines(
             return
 
         # Create panel for each pipeline
-        for pipeline in sorted(pipelines, key=lambda p: p.created_at, reverse=True):
+        for pipeline, workflows in sorted(
+            pipelines, key=lambda x: x[0].created_at, reverse=True
+        ):
             state = _format_pipeline_state(pipeline.state)
             commit = _get_commit_subject(pipeline)
             created = _format_relative_time(pipeline.created_at)
             url = _build_pipeline_url(pipeline)
-            branch = pipeline.vcs.branch if pipeline.vcs else "unknown"
             commit_hash = pipeline.vcs.revision[:12] if pipeline.vcs else "unknown"
+
+            # Sort workflows by created_at
+            sorted_workflows = sorted(workflows, key=lambda w: w.created_at)
+
+            # Build workflows status line
+            workflow_status = ", ".join(
+                f"{w.name}: {_format_workflow_status(w.status)}"
+                for w in sorted_workflows
+            )
 
             content = f"""[bold]ID:[/bold] {pipeline.id}
 [bold]Created:[/bold] {created}
 [bold]State:[/bold] {state}
 [bold]Commit:[/bold] {commit_hash} {commit}
-[bold]Branch:[/bold] {branch}
+[bold]Workflows:[/bold] {workflow_status}
 [bold]Link:[/bold] {url}"""
 
             panel = Panel(
@@ -86,6 +97,21 @@ def _build_pipeline_url(pipeline: api_types.Pipeline) -> str:
     org = parts[1]
     repo = parts[2]
     return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{pipeline.number}"
+
+
+def _format_workflow_status(status: api_types.WorkflowStatus) -> str:
+    """Format workflow status with color."""
+    if status == api_types.WorkflowStatus.success:
+        return f"[green]{status}[/green]"
+    elif status in {
+        api_types.WorkflowStatus.failed,
+        api_types.WorkflowStatus.error,
+        api_types.WorkflowStatus.failing,
+    }:
+        return f"[red]{status}[/red]"
+    elif status == api_types.WorkflowStatus.running:
+        return f"[yellow]{status}[/yellow]"
+    return str(status)
 
 
 def print_workflows(

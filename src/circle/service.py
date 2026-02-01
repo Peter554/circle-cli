@@ -36,18 +36,21 @@ class AppService:
         self,
         branch: str | None,
         n: int,
-    ) -> list[api_types.Pipeline]:
+    ) -> list[tuple[api_types.Pipeline, list[api_types.Workflow]]]:
         branch = self._get_branch(branch)
 
         cache_key = f"pipelines:{self.app_config.project_slug}:{branch}:{n}"
-        if (pipelines := self.api_cache.get(cache_key)) is not None:
-            return pipelines
-        pipelines = await self.api_client.get_pipelines(
-            self.app_config.project_slug, branch, n
-        )
-        # No concept of pipeline completion.
-        self.api_cache.set(cache_key, pipelines, ttl=self.in_progress_ttl_seconds)
-        return pipelines
+        pipelines = self.api_cache.get(cache_key)
+        if pipelines is None:
+            pipelines = await self.api_client.get_pipelines(
+                self.app_config.project_slug, branch, n
+            )
+            # No concept of pipeline completion.
+            self.api_cache.set(cache_key, pipelines, ttl=self.in_progress_ttl_seconds)
+
+        return [
+            (pipeline, await self.get_workflows(pipeline.id)) for pipeline in pipelines
+        ]
 
     async def get_workflows(
         self,
