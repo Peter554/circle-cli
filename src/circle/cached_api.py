@@ -7,6 +7,7 @@ import platformdirs
 from . import api, api_types
 
 _CACHE_SIZE_LIMIT = 1024 * 1024 * 1024  # 1GB
+_IN_PROGRESS_TTL = 15  # Seconds
 
 
 @dataclasses.dataclass(frozen=True)
@@ -31,7 +32,21 @@ class CachedAPIClient:
         return await self.inner.get_workflows(pipeline_id)
 
     async def get_workflow(self, workflow_id: str) -> api_types.Workflow:
-        return await self.inner.get_workflow(workflow_id)
+        cache_key = f"workflow:{workflow_id}"
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        workflow = await self.inner.get_workflow(workflow_id)
+
+        if workflow.is_completed:
+            ttl = None
+        else:
+            ttl = _IN_PROGRESS_TTL
+
+        self._cache.set(cache_key, workflow, expire=ttl)
+        return workflow
 
     async def get_jobs(self, workflow_id: str) -> list[api_types.Job]:
         return await self.inner.get_jobs(workflow_id)
