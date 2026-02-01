@@ -1,7 +1,13 @@
 import dataclasses
+import enum
 from typing import Annotated
 
 import cyclopts
+
+
+class OutputFormat(enum.StrEnum):
+    pretty = "pretty"
+    json = "json"
 
 
 @cyclopts.Parameter(name="*")
@@ -50,3 +56,10 @@ class CommonFlags:
             negative=(),
         ),
     ] = False
+    output_format: Annotated[
+        OutputFormat,
+        cyclopts.Parameter(
+            name=["--output-format", "-f"],
+            help="Output format",
+        ),
+    ] = OutputFormat.pretty

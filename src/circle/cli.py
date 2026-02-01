@@ -41,7 +41,7 @@ async def pipelines_list(
     _setup_logging(common_flags)
     app_service = _get_app_service(common_flags)
     pipelines = await app_service.get_pipelines(branch, n)
-    output.print(pipelines)
+    output.print_pipelines(pipelines, common_flags.output_format)
 
 
 @workflows_app.command(name="list")
@@ -60,7 +60,7 @@ async def workflows_list(
     _setup_logging(common_flags)
     app_service = _get_app_service(common_flags)
     workflows = await app_service.get_workflows(pipeline)
-    output.print(workflows)
+    output.print_workflows(workflows, common_flags.output_format)
 
 
 @jobs_app.command(name="list")
@@ -97,7 +97,7 @@ async def jobs_list(
     jobs = await app_service.get_jobs(
         pipeline, workflow, set(status) if status else None
     )
-    output.print(jobs)
+    output.print_jobs(jobs, common_flags.output_format)
 
 
 def _setup_logging(common_flags: flags.CommonFlags) -> None:
