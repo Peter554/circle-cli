@@ -1,8 +1,9 @@
+import logging
 from typing import Annotated
 
 import cyclopts
 
-from . import api, cached_api, config, output, service
+from . import api, cached_api, config, flags, output, service
 
 app = cyclopts.App(
     name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
@@ -28,7 +29,7 @@ async def pipelines_list(
             help="The branch. Defaults to the currently checked out branch.",
         ),
     ] = None,
-    config_flags: config.AppConfigFlags = config.AppConfigFlags(),
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
     n: Annotated[
         int,
         cyclopts.Parameter(
@@ -37,7 +38,8 @@ async def pipelines_list(
     ] = 3,
 ) -> None:
     """Show pipelines for a branch"""
-    app_service = _get_app_service(config_flags)
+    _setup_logging(common_flags)
+    app_service = _get_app_service(common_flags)
     pipelines = await app_service.get_pipelines(branch, n)
     output.print(pipelines)
 
@@ -52,10 +54,11 @@ async def workflows_list(
             help="The pipeline ID. Defaults to the latest pipeline for the currently checked out branch.",
         ),
     ] = None,
-    config_flags: config.AppConfigFlags = config.AppConfigFlags(),
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show workflows for a pipeline"""
-    app_service = _get_app_service(config_flags)
+    _setup_logging(common_flags)
+    app_service = _get_app_service(common_flags)
     workflows = await app_service.get_workflows(pipeline)
     output.print(workflows)
 
@@ -78,16 +81,24 @@ async def jobs_list(
             negative=(),
         ),
     ] = None,
-    config_flags: config.AppConfigFlags = config.AppConfigFlags(),
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show jobs for workflows"""
-    app_service = _get_app_service(config_flags)
-    results = await app_service.get_jobs(pipeline, workflow)
-    output.print(results)
+    _setup_logging(common_flags)
+    app_service = _get_app_service(common_flags)
+    jobs = await app_service.get_jobs(pipeline, workflow)
+    output.print(jobs)
 
 
-def _get_app_service(config_flags: config.AppConfigFlags) -> service.AppService:
-    app_config = config.load_config(config_flags)
+def _setup_logging(common_flags: flags.CommonFlags) -> None:
+    logging.basicConfig(
+        level=common_flags.log_level.upper(),
+        format="%(levelname)s [%(name)s] %(message)s",
+    )
+
+
+def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
+    app_config = config.load_config(common_flags)
     api_client = cached_api.CachedAPIClient(api.BasicAPIClient(app_config.token))
     return service.AppService(app_config, api_client)
 
