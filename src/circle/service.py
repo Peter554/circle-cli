@@ -130,6 +130,14 @@ class AppService:
         # Pair workflows with their jobs
         return list(zip(workflows, jobs_lists))
 
+    async def get_job_output(self, job_number: int) -> api_types.V1JobDetail:
+        """Get job output."""
+        # TODO Fetch output from output_url
+        # TODO Caching
+        return await self.api_client.get_v1_job_detail(
+            self.app_config.project_slug, job_number
+        )
+
     @staticmethod
     def _get_branch(branch: str | None) -> str:
         branch = branch or git.get_current_branch()

@@ -173,6 +173,16 @@ def print_jobs(
             console.print()
 
 
+def print_job_output(
+    job_output: api_types.V1JobDetail,
+    output_format: flags.OutputFormat,
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        console.print(json.dumps(job_output.model_dump(mode="json"), indent=2))
+    else:
+        raise NotImplementedError("Pretty output not yet implemented")
+
+
 def _format_pipeline_state(state: api_types.PipelineState) -> str:
     """Format pipeline state with color."""
     if state == api_types.PipelineState.errored:

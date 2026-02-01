@@ -167,3 +167,59 @@ class JobStatus(enum.StrEnum):
 class JobType(enum.StrEnum):
     build = "build"
     approval = "approval"
+
+
+class V1JobDetail(BaseModel):
+    status: V1JobStatus
+    lifecycle: V1JobLifecycle
+    outcome: V1JobOutcome | None = None
+    steps: list[V1JobStep] = pydantic.Field(default_factory=list)
+
+    @property
+    def is_completed(self) -> bool:
+        return self.lifecycle == V1JobLifecycle.finished and self.outcome is not None
+
+
+class V1JobStatus(enum.StrEnum):
+    retried = "retried"
+    canceled = "canceled"
+    infrastructure_fail = "infrastructure_fail"
+    timedout = "timedout"
+    not_run = "not_run"
+    running = "running"
+    failed = "failed"
+    queued = "queued"
+    not_running = "not_running"
+    no_tests = "no_tests"
+    fixed = "fixed"
+    success = "success"
+
+
+class V1JobOutcome(enum.StrEnum):
+    canceled = "canceled"
+    infrastructure_fail = "infrastructure_fail"
+    timedout = "timedout"
+    failed = "failed"
+    no_tests = "no_tests"
+    success = "success"
+
+
+class V1JobLifecycle(enum.StrEnum):
+    queued = "queued"
+    not_run = "not_run"
+    not_running = "not_running"
+    running = "running"
+    finished = "finished"
+
+
+class V1JobStep(BaseModel):
+    name: str
+    actions: list[V1JobAction]
+
+
+class V1JobAction(BaseModel):
+    index: int
+    status: str  # Unsure of enum here (spec unclear)
+    start_time: datetime.datetime | None = None
+    end_time: datetime.datetime | None = None
+    output_url: str | None = None

@@ -17,6 +17,9 @@ class APIClient:
     base_url_v2: str = dataclasses.field(
         default="https://circleci.com/api/v2", init=False
     )
+    base_url_v1: str = dataclasses.field(
+        default="https://circleci.com/api/v1.1", init=False
+    )
 
     @functools.cached_property
     def _semaphore(self) -> asyncio.Semaphore:
@@ -62,6 +65,22 @@ class APIClient:
         url = f"{self.base_url_v2}/workflow/{workflow_id}/job"
         items = await self._fetch_paginated(url, max_items=None)
         return [api_types.Job.model_validate(item) for item in items]
+
+    async def get_v1_job_detail(
+        self, project_slug: str, job_number: int
+    ) -> api_types.V1JobDetail:
+        """
+        GET /project/{project_slug}/{build-num}
+        """
+        url = f"{self.base_url_v1}/project/{project_slug}/{job_number}"
+        async with httpx.AsyncClient() as client:
+            async with self._semaphore:
+                response = await client.get(url, headers=self._headers(), timeout=30)
+            if response.status_code != 200:
+                raise APIError(
+                    f"Failed to fetch from {url}: {response.status_code} {response.text}"
+                )
+            return api_types.V1JobDetail.model_validate(response.json())
 
     def _headers(self) -> dict[str, str]:
         return {"Circle-Token": self.token}

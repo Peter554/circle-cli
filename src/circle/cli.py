@@ -104,6 +104,38 @@ async def jobs_list(
     output.print_jobs(jobs, common_flags.output_format)
 
 
+@jobs_app.command(name="output")
+async def job_output(
+    job_number: Annotated[
+        int,
+        cyclopts.Parameter(
+            help="The job number",
+        ),
+    ],
+    *,
+    step: Annotated[
+        int,
+        cyclopts.Parameter(
+            name=["--step"],
+            help="The step number",
+        ),
+    ],
+    index: Annotated[
+        int | None,
+        cyclopts.Parameter(
+            name=["--index"],
+            help="The parallel run index",
+        ),
+    ] = None,
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
+) -> None:
+    """Show job output"""
+    _setup_logging(common_flags)
+    _ = _get_app_service(common_flags)
+    # TODO
+    ...
+
+
 def _setup_logging(common_flags: flags.CommonFlags) -> None:
     logging.basicConfig(
         level=common_flags.log_level.upper(),
