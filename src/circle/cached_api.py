@@ -49,4 +49,18 @@ class CachedAPIClient:
         return workflow
 
     async def get_jobs(self, workflow_id: str) -> list[api_types.Job]:
-        return await self.inner.get_jobs(workflow_id)
+        cache_key = f"jobs:{workflow_id}"
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        jobs = await self.inner.get_jobs(workflow_id)
+
+        if jobs and all(job.is_completed for job in jobs):
+            ttl = None
+        else:
+            ttl = _IN_PROGRESS_TTL
+
+        self._cache.set(cache_key, jobs, expire=ttl)
+        return jobs
