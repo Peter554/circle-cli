@@ -22,7 +22,13 @@ def print_pipelines(
     output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        data = [p.model_dump(mode="json") for p, _ in pipelines]
+        data = [
+            {
+                "pipeline": pipeline.model_dump(mode="json"),
+                "workflows": [w.model_dump(mode="json") for w in workflows],
+            }
+            for pipeline, workflows in pipelines
+        ]
         console.print(json.dumps(data, indent=2))
     else:
         if not pipelines:
@@ -58,7 +64,7 @@ def print_pipelines(
             panel = Panel(
                 content,
                 title=f"[bold]Pipeline {pipeline.id}[/bold]",
-                border_style=_get_pipeline_border_style(pipeline.state),
+                border_style=_get_pipeline_border_style(pipeline.state, workflows),
             )
             console.print(panel)
 
@@ -95,7 +101,7 @@ def print_workflows(
 
             panel = Panel(
                 content,
-                title=f"[bold]{workflow.name}[/bold]",
+                title=f"[bold]{workflow.name} ({workflow.id})[/bold]",
                 border_style=_get_workflow_border_style(workflow.status),
             )
             console.print(panel)
@@ -126,6 +132,11 @@ def print_jobs(
 
             console.print(f"\n[bold]Workflow:[/bold] {workflow.name} ({workflow.id})\n")
 
+            # Sort jobs by status priority, then chronologically
+            sorted_jobs = sorted(
+                job_list, key=lambda j: _get_job_status_priority(j.status)
+            )
+
             # Create table
             table = Table(show_header=True, header_style="bold")
             table.add_column("Name", overflow="ellipsis", max_width=64)
@@ -133,7 +144,7 @@ def print_jobs(
             table.add_column("Duration")
             table.add_column("Link")
 
-            for job in job_list:
+            for job in sorted_jobs:
                 status = _format_job_status(job.status)
                 duration = _format_duration(job.started_at, job.stopped_at)
 
@@ -162,10 +173,38 @@ def _format_pipeline_state(state: api_types.PipelineState) -> str:
     return str(state)
 
 
-def _get_pipeline_border_style(state: api_types.PipelineState) -> str:
-    """Get border style for pipeline panel based on state."""
+def _get_pipeline_border_style(
+    state: api_types.PipelineState,
+    workflows: list[api_types.Workflow],
+) -> str:
+    """Get border style for pipeline panel based on state and workflow statuses."""
+    # Pipeline errors take priority
     if state == api_types.PipelineState.errored:
         return "red"
+
+    if not workflows:
+        return "white"
+
+    # Check for failed workflows
+    if any(
+        w.status
+        in {
+            api_types.WorkflowStatus.failed,
+            api_types.WorkflowStatus.error,
+            api_types.WorkflowStatus.failing,
+        }
+        for w in workflows
+    ):
+        return "red"
+
+    # Check for running workflows
+    if any(w.status == api_types.WorkflowStatus.running for w in workflows):
+        return "yellow"
+
+    # Check if all are successful
+    if all(w.status == api_types.WorkflowStatus.success for w in workflows):
+        return "green"
+
     return "white"
 
 
@@ -226,30 +265,6 @@ def _build_workflow_url(workflow: api_types.Workflow) -> str:
     return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{workflow.pipeline_number}/workflows/{workflow.id}"
 
 
-def _format_job_status(status: api_types.JobStatus) -> str:
-    """Format job status with color."""
-    if status == api_types.JobStatus.success:
-        return f"[green]{status}[/green]"
-    elif status in {
-        api_types.JobStatus.failed,
-        api_types.JobStatus.infrastructure_fail,
-        api_types.JobStatus.timedout,
-    }:
-        return f"[red]{status}[/red]"
-    elif status in {
-        api_types.JobStatus.running,
-        api_types.JobStatus.queued,
-    }:
-        return f"[yellow]{status}[/yellow]"
-    return str(status)
-
-
-def _build_job_url(job: api_types.Job) -> str:
-    """Build CircleCI job URL."""
-    vcs_provider, org, repo = _parse_project_slug(job.project_slug)
-    return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/jobs/{job.job_number}"
-
-
 def _format_link(url: str) -> str:
     """Format a clickable link with consistent styling."""
     return f"[link={url}][blue underline]link[/blue underline][/link]"
@@ -278,3 +293,52 @@ def _get_workflow_color(status: api_types.WorkflowStatus) -> str:
     elif status == api_types.WorkflowStatus.running:
         return "yellow"
     return "white"
+
+
+def _format_job_status(status: api_types.JobStatus) -> str:
+    """Format job status with color."""
+    if status == api_types.JobStatus.success:
+        return f"[green]{status}[/green]"
+    elif status in {
+        api_types.JobStatus.failed,
+        api_types.JobStatus.infrastructure_fail,
+        api_types.JobStatus.timedout,
+        api_types.JobStatus.unauthorized,
+    }:
+        return f"[red]{status}[/red]"
+    elif status in {
+        api_types.JobStatus.running,
+        api_types.JobStatus.queued,
+    }:
+        return f"[yellow]{status}[/yellow]"
+    return str(status)
+
+
+def _get_job_status_priority(status: api_types.JobStatus) -> int:
+    """Get priority for job status sorting (lower = higher priority)."""
+    # Failed/errored first
+    if status in {
+        api_types.JobStatus.failed,
+        api_types.JobStatus.infrastructure_fail,
+        api_types.JobStatus.timedout,
+        api_types.JobStatus.unauthorized,
+    }:
+        return 0
+    # Running/queued second
+    elif status in {
+        api_types.JobStatus.running,
+        api_types.JobStatus.queued,
+    }:
+        return 1
+    # Success third
+    elif status == api_types.JobStatus.success:
+        return 2
+    # Everything else last
+    else:
+        return 3
+
+
+def _build_job_url(job: api_types.Job) -> str:
+    """Build CircleCI job URL."""
+    vcs_provider, org, repo = _parse_project_slug(job.project_slug)
+    return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/jobs/{job.job_number}"
