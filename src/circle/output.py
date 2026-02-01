@@ -62,6 +62,59 @@ def print_pipelines(
             console.print(panel)
 
 
+def print_workflows(
+    workflows: list[api_types.Workflow], output_format: flags.OutputFormat
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        data = [w.model_dump(mode="json") for w in workflows]
+        console.print(json.dumps(data, indent=2))
+    else:
+        if not workflows:
+            console.print("No workflows found")
+            return
+
+        # Get pipeline info from first workflow
+        pipeline_number = workflows[0].pipeline_number
+        console.print(f"\nWorkflows for pipeline: [bold]#{pipeline_number}[/bold]\n")
+
+        # Create panel for each workflow
+        for workflow in sorted(workflows, key=lambda w: w.created_at):
+            status = _format_workflow_status(workflow.status)
+            duration = _format_duration(workflow.created_at, workflow.stopped_at)
+            created = _format_relative_time(workflow.created_at)
+            url = _build_workflow_url(workflow)
+
+            content = f"""[bold]ID:[/bold] {workflow.id}
+[bold]Created:[/bold] {created}
+[bold]Status:[/bold] {status}
+[bold]Duration:[/bold] {duration}
+[bold]Link:[/bold] [link={url}]{url}[/link]"""
+
+            panel = Panel(
+                content,
+                title=f"[bold]{workflow.name}[/bold]",
+                border_style=_get_workflow_border_style(workflow.status),
+            )
+            console.print(panel)
+
+
+def print_jobs(
+    jobs: list[tuple[api_types.Workflow, list[api_types.Job]]],
+    output_format: flags.OutputFormat,
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        data = [
+            {
+                "workflow": workflow.model_dump(mode="json"),
+                "jobs": [job.model_dump(mode="json") for job in job_list],
+            }
+            for workflow, job_list in jobs
+        ]
+        console.print(json.dumps(data, indent=2))
+    else:
+        raise NotImplementedError("Pretty output not yet implemented")
+
+
 def _format_pipeline_state(state: api_types.PipelineState) -> str:
     """Format pipeline state with color."""
     if state == api_types.PipelineState.errored:
@@ -114,28 +167,41 @@ def _format_workflow_status(status: api_types.WorkflowStatus) -> str:
     return str(status)
 
 
-def print_workflows(
-    workflows: list[api_types.Workflow], output_format: flags.OutputFormat
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [w.model_dump(mode="json") for w in workflows]
-        console.print(json.dumps(data, indent=2))
-    else:
-        raise NotImplementedError("Pretty output not yet implemented")
+def _get_workflow_border_style(status: api_types.WorkflowStatus) -> str:
+    """Get border style for workflow panel based on status."""
+    if status == api_types.WorkflowStatus.success:
+        return "green"
+    elif status in {
+        api_types.WorkflowStatus.failed,
+        api_types.WorkflowStatus.error,
+        api_types.WorkflowStatus.failing,
+    }:
+        return "red"
+    elif status == api_types.WorkflowStatus.running:
+        return "yellow"
+    return "white"
 
 
-def print_jobs(
-    jobs: list[tuple[api_types.Workflow, list[api_types.Job]]],
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [
-            {
-                "workflow": workflow.model_dump(mode="json"),
-                "jobs": [job.model_dump(mode="json") for job in job_list],
-            }
-            for workflow, job_list in jobs
-        ]
-        console.print(json.dumps(data, indent=2))
-    else:
-        raise NotImplementedError("Pretty output not yet implemented")
+def _format_duration(created_at: datetime, stopped_at: datetime | None) -> str:
+    """Format duration between created and stopped times."""
+    if stopped_at is None:
+        # Still running, show elapsed time
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta = now - created_at
+        return f"{humanize.naturaldelta(delta)} (running)"
+
+    # Completed, show total duration
+    delta = stopped_at - created_at
+    return humanize.naturaldelta(delta)
+
+
+def _build_workflow_url(workflow: api_types.Workflow) -> str:
+    """Build CircleCI workflow URL."""
+    parts = workflow.project_slug.split("/")
+    assert len(parts) == 3, f"Invalid project slug: {workflow.project_slug}"
+    vcs_provider = "github" if parts[0] == "gh" else "bitbucket"
+    org = parts[1]
+    repo = parts[2]
+    return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{workflow.pipeline_number}/workflows/{workflow.id}"
