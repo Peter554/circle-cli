@@ -1,9 +1,6 @@
-from __future__ import annotations
-
 import asyncio
 import dataclasses
 import functools
-import typing
 
 import httpx
 
@@ -13,20 +10,8 @@ from . import api_types
 class APIError(Exception): ...
 
 
-class APIClient(typing.Protocol):
-    async def get_pipelines(
-        self, project_slug: str, branch: str, limit: int
-    ) -> list[api_types.Pipeline]: ...
-
-    async def get_workflows(self, pipeline_id: str) -> list[api_types.Workflow]: ...
-
-    async def get_workflow(self, workflow_id: str) -> api_types.Workflow: ...
-
-    async def get_jobs(self, workflow_id: str) -> list[api_types.Job]: ...
-
-
 @dataclasses.dataclass(frozen=True)
-class BasicAPIClient:
+class APIClient:
     token: str
     max_concurrent_requests: int = 8
     base_url_v2: str = dataclasses.field(

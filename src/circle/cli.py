@@ -3,7 +3,7 @@ from typing import Annotated
 
 import cyclopts
 
-from . import api, cached_api, config, flags, output, service
+from . import api, config, flags, output, service
 
 app = cyclopts.App(
     name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
@@ -99,7 +99,7 @@ def _setup_logging(common_flags: flags.CommonFlags) -> None:
 
 def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
     app_config = config.load_config(common_flags)
-    api_client = cached_api.CachedAPIClient(api.BasicAPIClient(app_config.token))
+    api_client = api.APIClient(app_config.token)
     return service.AppService(app_config, api_client)
 
 
