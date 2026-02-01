@@ -109,3 +109,41 @@ class WorkflowStatus(enum.StrEnum):
     on_hold = "on_hold"
     canceled = "canceled"
     unauthorized = "unauthorized"
+
+
+class Job(BaseModel):
+    id: str
+    name: str
+    started_at: datetime.datetime
+    dependencies: list[str]
+    project_slug: str
+    status: JobStatus
+    type: JobType
+    job_number: int | None = None
+    stopped_at: datetime.datetime | None = None
+    canceled_by: str | None = None
+    approved_by: str | None = None
+    approval_request_id: str | None = None
+    requires: dict[str, list[str]] | None = None
+
+
+class JobStatus(enum.StrEnum):
+    success = "success"
+    running = "running"
+    not_run = "not_run"
+    failed = "failed"
+    retried = "retried"
+    queued = "queued"
+    not_running = "not_running"
+    infrastructure_fail = "infrastructure_fail"
+    timedout = "timedout"
+    on_hold = "on_hold"
+    terminated_unknown = "terminated-unknown"
+    blocked = "blocked"
+    canceled = "canceled"
+    unauthorized = "unauthorized"
+
+
+class JobType(enum.StrEnum):
+    build = "build"
+    approval = "approval"

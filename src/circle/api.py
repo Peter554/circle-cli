@@ -36,6 +36,14 @@ class APIClient:
         items = await self._fetch_paginated(url, max_items=None)
         return [api_types.Workflow.model_validate(item) for item in items]
 
+    async def get_jobs(self, workflow_id: str) -> list[api_types.Job]:
+        """
+        GET /workflow/{id}/job
+        """
+        url = f"{self.base_url_v2}/workflow/{workflow_id}/job"
+        items = await self._fetch_paginated(url, max_items=None)
+        return [api_types.Job.model_validate(item) for item in items]
+
     def _headers(self) -> dict[str, str]:
         return {"Circle-Token": self.token}
 
