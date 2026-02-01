@@ -2,7 +2,7 @@ from typing import Annotated
 
 import cyclopts
 
-from . import api, config, output, service
+from . import api, cached_api, config, output, service
 
 app = cyclopts.App(
     name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
@@ -88,7 +88,7 @@ async def jobs_list(
 
 def _get_app_service(config_flags: config.AppConfigFlags) -> service.AppService:
     app_config = config.load_config(config_flags)
-    api_client = api.BasicAPIClient(app_config.token)
+    api_client = cached_api.CachedAPIClient(api.BasicAPIClient(app_config.token))
     return service.AppService(app_config, api_client)
 
 
