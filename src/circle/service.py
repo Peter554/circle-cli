@@ -21,15 +21,14 @@ class AppService:
         branch: str | None,
     ) -> api_types.Pipeline | None:
         branch = self._get_branch(branch)
-
         cache_key = f"latest_pipeline:{self.app_config.project_slug}:{branch}"
-        if (pipeline := self.api_cache.get(cache_key)) is not None:
-            return pipeline
-        pipelines = await self.api_client.get_pipelines(
-            self.app_config.project_slug, branch, 1
-        )
-        pipeline = pipelines[0] if pipelines else None
-        self.api_cache.set(cache_key, pipeline, ttl=self.in_progress_ttl_seconds)
+        pipeline = self.api_cache.get(cache_key)
+        if pipeline is None:
+            pipelines = await self.api_client.get_pipelines(
+                self.app_config.project_slug, branch, 1
+            )
+            pipeline = pipelines[0] if pipelines else None
+            self.api_cache.set(cache_key, pipeline, ttl=self.in_progress_ttl_seconds)
         return pipeline
 
     async def get_pipelines(
@@ -38,7 +37,6 @@ class AppService:
         n: int,
     ) -> list[tuple[api_types.Pipeline, list[api_types.Workflow]]]:
         branch = self._get_branch(branch)
-
         cache_key = f"pipelines:{self.app_config.project_slug}:{branch}:{n}"
         pipelines = self.api_cache.get(cache_key)
         if pipelines is None:
@@ -61,17 +59,18 @@ class AppService:
             pipeline_id = (await self._get_latest_pipeline_for_current_branch()).id
 
         cache_key = f"pipeline:{pipeline_id}:workflows"
-        if (workflows := self.api_cache.get(cache_key)) is not None:
-            return workflows
-        workflows = await self.api_client.get_workflows(pipeline_id)
-        # No concept of pipeline completion.
-        # Infer completion from workflow completion.
-        ttl = (
-            None
-            if all(w.is_completed for w in workflows)
-            else self.in_progress_ttl_seconds
-        )
-        self.api_cache.set(cache_key, workflows, ttl=ttl)
+        workflows = self.api_cache.get(cache_key)
+        if workflows is None:
+            workflows = await self.api_client.get_workflows(pipeline_id)
+            # No concept of pipeline completion.
+            # Infer completion from workflow completion.
+            # Assumption: No new workflows will be created later.
+            ttl = (
+                None
+                if all(w.is_completed for w in workflows)
+                else self.in_progress_ttl_seconds
+            )
+            self.api_cache.set(cache_key, workflows, ttl=ttl)
         return workflows
 
     async def get_jobs(
@@ -136,22 +135,20 @@ class AppService:
 
     async def _get_workflow(self, workflow_id: str) -> api_types.Workflow:
         cache_key = f"workflow:{workflow_id}"
-
-        if (workflow := self.api_cache.get(cache_key)) is not None:
-            return workflow
-        workflow = await self.api_client.get_workflow(workflow_id)
-        ttl = None if workflow.is_completed else self.in_progress_ttl_seconds
-        self.api_cache.set(cache_key, workflow, ttl=ttl)
+        workflow = self.api_cache.get(cache_key)
+        if workflow is None:
+            workflow = await self.api_client.get_workflow(workflow_id)
+            ttl = None if workflow.is_completed else self.in_progress_ttl_seconds
+            self.api_cache.set(cache_key, workflow, ttl=ttl)
         return workflow
 
     async def _get_workflow_jobs(
         self, workflow: api_types.Workflow
     ) -> list[api_types.Job]:
         cache_key = f"workflow:{workflow.id}:jobs"
-
-        if (jobs := self.api_cache.get(cache_key)) is not None:
-            return jobs
-        jobs = await self.api_client.get_jobs(workflow.id)
-        ttl = None if workflow.is_completed else self.in_progress_ttl_seconds
-        self.api_cache.set(cache_key, jobs, ttl=ttl)
+        jobs = self.api_cache.get(cache_key)
+        if jobs is None:
+            jobs = await self.api_client.get_jobs(workflow.id)
+            ttl = None if workflow.is_completed else self.in_progress_ttl_seconds
+            self.api_cache.set(cache_key, jobs, ttl=ttl)
         return jobs

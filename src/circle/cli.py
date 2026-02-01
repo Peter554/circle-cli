@@ -19,6 +19,7 @@ jobs_app = cyclopts.App(name="jobs")
 app.command(jobs_app, alias=["job", "j"])
 
 
+@app.default
 @pipelines_app.default
 @pipelines_app.command(name="list")
 async def pipelines_list(
