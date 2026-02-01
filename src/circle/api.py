@@ -36,6 +36,19 @@ class APIClient:
         items = await self._fetch_paginated(url, max_items=None)
         return [api_types.Workflow.model_validate(item) for item in items]
 
+    async def get_workflow(self, workflow_id: str) -> api_types.Workflow:
+        """
+        GET /workflow/{id}
+        """
+        url = f"{self.base_url_v2}/workflow/{workflow_id}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self._headers(), timeout=30)
+            if response.status_code != 200:
+                raise APIError(
+                    f"Failed to fetch from {url}: {response.status_code} {response.text}"
+                )
+            return api_types.Workflow.model_validate(response.json())
+
     async def get_jobs(self, workflow_id: str) -> list[api_types.Job]:
         """
         GET /workflow/{id}/job
