@@ -29,7 +29,21 @@ class CachedAPIClient:
         return await self.inner.get_pipelines(project_slug, branch, limit)
 
     async def get_workflows(self, pipeline_id: str) -> list[api_types.Workflow]:
-        return await self.inner.get_workflows(pipeline_id)
+        cache_key = f"workflows:{pipeline_id}"
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        workflows = await self.inner.get_workflows(pipeline_id)
+
+        if workflows and all(workflow.is_completed for workflow in workflows):
+            ttl = None
+        else:
+            ttl = _IN_PROGRESS_TTL
+
+        self._cache.set(cache_key, workflows, expire=ttl)
+        return workflows
 
     async def get_workflow(self, workflow_id: str) -> api_types.Workflow:
         cache_key = f"workflow:{workflow_id}"
