@@ -1,3 +1,4 @@
+import asyncio
 import dataclasses
 
 from . import api, api_types, config, git
@@ -51,25 +52,36 @@ class AppService:
         # If no workflow IDs are, use workflows for the pipeline ID or latest pipeline for the current branch.
 
         if workflow_ids:
-            workflows = []
-            for workflow_id in workflow_ids:
-                workflow = await self.api_client.get_workflow(workflow_id)
-                if pipeline_id is not None and workflow.pipeline_id != pipeline_id:
-                    raise AppError(
-                        f"Workflow {workflow_id} does not belong to pipeline {pipeline_id}"
-                    )
-                workflows.append(workflow)
+            # Fetch all workflows concurrently
+            async with asyncio.TaskGroup() as tg:
+                tasks = [
+                    tg.create_task(self.api_client.get_workflow(wid))
+                    for wid in workflow_ids
+                ]
+            workflows = [task.result() for task in tasks]
         else:
             if pipeline_id is None:
                 pipeline_id = (await self._get_latest_pipeline_for_current_branch()).id
             workflows = await self.api_client.get_workflows(pipeline_id)
 
-        results = []
-        for workflow in workflows:
-            jobs = await self.api_client.get_jobs(workflow.id)
-            results.append((workflow, jobs))
+        # Validate pipeline_id if provided
+        if pipeline_id is not None:
+            for workflow in workflows:
+                if workflow.pipeline_id != pipeline_id:
+                    raise AppError(
+                        f"Workflow {workflow.id} does not belong to pipeline {pipeline_id}"
+                    )
 
-        return results
+        # Fetch jobs for all workflows concurrently
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(self.api_client.get_jobs(workflow.id))
+                for workflow in workflows
+            ]
+        jobs_lists = [task.result() for task in tasks]
+
+        # Pair workflows with their jobs
+        return list(zip(workflows, jobs_lists))
 
     @staticmethod
     def _get_branch(branch: str | None) -> str:

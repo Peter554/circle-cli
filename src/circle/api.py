@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import dataclasses
+import functools
 
 import httpx
 
@@ -13,9 +15,14 @@ class APIError(Exception): ...
 @dataclasses.dataclass(frozen=True)
 class APIClient:
     token: str
+    max_concurrent_requests: int = 8
     base_url_v2: str = dataclasses.field(
         default="https://circleci.com/api/v2", init=False
     )
+
+    @functools.cached_property
+    def _semaphore(self) -> asyncio.Semaphore:
+        return asyncio.Semaphore(self.max_concurrent_requests)
 
     async def get_pipelines(
         self, project_slug: str, branch: str, limit: int
@@ -42,7 +49,8 @@ class APIClient:
         """
         url = f"{self.base_url_v2}/workflow/{workflow_id}"
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=self._headers(), timeout=30)
+            async with self._semaphore:
+                response = await client.get(url, headers=self._headers(), timeout=30)
             if response.status_code != 200:
                 raise APIError(
                     f"Failed to fetch from {url}: {response.status_code} {response.text}"
@@ -70,9 +78,10 @@ class APIClient:
         all_items = []
         async with httpx.AsyncClient() as client:
             while True:
-                response = await client.get(
-                    url, headers=self._headers(), params=params, timeout=30
-                )
+                async with self._semaphore:
+                    response = await client.get(
+                        url, headers=self._headers(), params=params, timeout=30
+                    )
                 if response.status_code != 200:
                     raise APIError(
                         f"Failed to fetch from {url}: {response.status_code} {response.text}"
