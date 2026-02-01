@@ -98,6 +98,16 @@ class Workflow(BaseModel):
     auto_rerun_number: int | None = None
     max_auto_reruns: int | None = None
 
+    @property
+    def is_completed(self) -> bool:
+        return self.status in {
+            WorkflowStatus.success,
+            WorkflowStatus.failed,
+            WorkflowStatus.error,
+            WorkflowStatus.canceled,
+            WorkflowStatus.unauthorized,
+        }
+
 
 class WorkflowStatus(enum.StrEnum):
     success = "success"
@@ -125,6 +135,16 @@ class Job(BaseModel):
     approved_by: str | None = None
     approval_request_id: str | None = None
     requires: dict[str, list[str]] | None = None
+
+    @property
+    def is_completed(self) -> bool:
+        return self.status in {
+            JobStatus.success,
+            JobStatus.failed,
+            JobStatus.canceled,
+            JobStatus.unauthorized,
+            JobStatus.not_run,  # Is this the same as "skipped"?
+        }
 
 
 class JobStatus(enum.StrEnum):
