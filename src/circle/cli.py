@@ -10,13 +10,13 @@ app = cyclopts.App(
 )
 
 pipelines_app = cyclopts.App(name="pipelines")
-app.command(pipelines_app)
+app.command(pipelines_app, alias=["pipeline", "p"])
 
 workflows_app = cyclopts.App(name="workflows")
-app.command(workflows_app)
+app.command(workflows_app, alias=["workflow", "w"])
 
 jobs_app = cyclopts.App(name="jobs")
-app.command(jobs_app)
+app.command(jobs_app, alias=["job", "j"])
 
 
 @pipelines_app.command(name="list")
