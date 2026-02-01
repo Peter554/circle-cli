@@ -139,13 +139,18 @@ def print_jobs(
 
             # Create table
             table = Table(show_header=True, header_style="bold")
+            table.add_column("Number")
             table.add_column("Name", overflow="ellipsis", max_width=64)
             table.add_column("Status")
+            table.add_column("Started")
             table.add_column("Duration")
             table.add_column("Link")
 
             for job in sorted_jobs:
                 status = _format_job_status(job.status)
+                started = (
+                    _format_relative_time(job.started_at) if job.started_at else ""
+                )
                 duration = _format_duration(job.started_at, job.stopped_at)
 
                 # Build link if job_number exists
@@ -156,8 +161,10 @@ def print_jobs(
                     link = ""
 
                 table.add_row(
+                    str(job.job_number or ""),
                     job.name,
                     status,
+                    started,
                     duration,
                     link,
                 )
