@@ -114,12 +114,12 @@ class WorkflowStatus(enum.StrEnum):
 class Job(BaseModel):
     id: str
     name: str
-    started_at: datetime.datetime
     dependencies: list[str]
     project_slug: str
     status: JobStatus
     type: JobType
     job_number: int | None = None
+    started_at: datetime.datetime | None = None
     stopped_at: datetime.datetime | None = None
     canceled_by: str | None = None
     approved_by: str | None = None
