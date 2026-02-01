@@ -46,9 +46,16 @@ class AppService:
             # No concept of pipeline completion.
             self.api_cache.set(cache_key, pipelines, ttl=self.in_progress_ttl_seconds)
 
-        return [
-            (pipeline, await self.get_workflows(pipeline.id)) for pipeline in pipelines
-        ]
+        # Fetch workflows for all pipelines concurrently
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(self.get_workflows(pipeline.id))
+                for pipeline in pipelines
+            ]
+        workflows_lists = [task.result() for task in tasks]
+
+        # Pair pipelines with their workflows
+        return list(zip(pipelines, workflows_lists))
 
     async def get_workflows(
         self,
