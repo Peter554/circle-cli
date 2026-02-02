@@ -1,6 +1,7 @@
 """Rich output formatting for CLI."""
 
 import json
+from collections import defaultdict
 from datetime import datetime, timezone
 
 import humanize
@@ -80,18 +81,23 @@ def print_workflows(
             console.print("No workflows found")
             return
 
-        # Get pipeline info from first workflow
-        pipeline_id = workflows[0].pipeline_id
-        console.print(f"\nWorkflows for pipeline {pipeline_id}\n")
+        # Group workflows by pipeline_id
+        workflows_by_pipeline: dict[str, list[api_types.Workflow]] = defaultdict(list)
+        for workflow in workflows:
+            workflows_by_pipeline[workflow.pipeline_id].append(workflow)
 
-        # Create panel for each workflow
-        for workflow in sorted(workflows, key=lambda w: w.created_at):
-            status = _format_workflow_status(workflow.status)
-            duration = _format_duration(workflow.created_at, workflow.stopped_at)
-            created = _format_relative_time(workflow.created_at)
-            url = _build_workflow_url(workflow)
+        # Display workflows grouped by pipeline
+        for pipeline_id, pipeline_workflows in workflows_by_pipeline.items():
+            console.print(f"\n[bold]Pipeline:[/bold] {pipeline_id}\n")
 
-            content = f"""
+            # Create panel for each workflow, sorted by created_at
+            for workflow in sorted(pipeline_workflows, key=lambda w: w.created_at):
+                status = _format_workflow_status(workflow.status)
+                duration = _format_duration(workflow.created_at, workflow.stopped_at)
+                created = _format_relative_time(workflow.created_at)
+                url = _build_workflow_url(workflow)
+
+                content = f"""
 [bold]ID:[/bold] {workflow.id}
 [bold]Name:[/bold] {workflow.name}
 [bold]Created:[/bold] {created}
@@ -99,12 +105,12 @@ def print_workflows(
 [bold]Duration:[/bold] {duration}
 [bold]Link:[/bold] {_format_link(url)}"""
 
-            panel = Panel(
-                content,
-                title=f"[bold]{workflow.name} ({workflow.id})[/bold]",
-                border_style=_get_workflow_border_style(workflow.status),
-            )
-            console.print(panel)
+                panel = Panel(
+                    content,
+                    title=f"[bold]{workflow.name} ({workflow.id})[/bold]",
+                    border_style=_get_workflow_border_style(workflow.status),
+                )
+                console.print(panel)
 
 
 def print_jobs(
