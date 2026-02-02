@@ -98,6 +98,20 @@ class APIClient:
                 )
             return api_types.V1JobDetails.model_validate(response.json())
 
+    async def get_job_output(self, presigned_url: str) -> api_types.JobOutput:
+        """
+        GET job output from presigned URL
+        """
+        async with httpx.AsyncClient() as client:
+            async with self._semaphore:
+                response = await client.get(presigned_url, timeout=30)
+            if response.status_code != 200:
+                raise APIError(
+                    f"Failed to fetch from {presigned_url}: {response.status_code} {response.text}"
+                )
+            data = response.json()
+            return [api_types.JobOutputMessage.model_validate(item) for item in data]
+
     def _headers(self) -> dict[str, str]:
         return {"Circle-Token": self.token}
 

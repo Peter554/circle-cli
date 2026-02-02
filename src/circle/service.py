@@ -152,14 +152,36 @@ class AppService:
 
         return JobDetailsWithSteps(details, steps_by_action_index)
 
-    async def get_job_output(self, job_number: int) -> api_types.V1JobDetails:
+    async def get_job_output(
+        self, job_number: int, step: int, action_index: int | None
+    ) -> api_types.JobOutput:
         """Get job output."""
-        # TODO Fetch output from output_url
-        # TODO Caching
-        # We can't cache the V1 job details call here since the presigned URL expires
-        return await self.api_client.get_v1_job_details(
-            self.app_config.project_slug, job_number
-        )
+        if action_index is None:
+            job_details = await self.get_job_details(job_number)
+            if job_details.details.parallelism > 1:
+                raise AppError("action_index is required for parallel jobs")
+            else:
+                action_index = 0
+
+        job_output = self.cache_manager.get_job_output(job_number, step, action_index)
+        if job_output is None:
+            # !Note: We can't cache the V1 job details call here since the presigned URL expires
+            job_details = await self.api_client.get_v1_job_details(
+                self.app_config.project_slug, job_number
+            )
+            actions = [
+                a for a in job_details.steps[step].actions if a.index == action_index
+            ]
+            assert len(actions) == 1
+            action = actions[0]
+            output_url = action.output_url
+            if output_url is None:
+                raise AppError("Output URL not found")
+            job_output = await self.api_client.get_job_output(output_url)
+            self.cache_manager.set_job_output(
+                job_number, job_details.lifecycle, step, action_index, job_output
+            )
+        return job_output
 
     @staticmethod
     def _get_branch(branch: str | None) -> str:

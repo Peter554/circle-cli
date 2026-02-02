@@ -142,26 +142,27 @@ async def job_output(
     ],
     *,
     step: Annotated[
+        # TODO Make optional? Default to first failed step?
         int,
         cyclopts.Parameter(
             name=["--step"],
             help="The step number",
         ),
     ],
-    index: Annotated[
+    action_index: Annotated[
         int | None,
         cyclopts.Parameter(
-            name=["--index"],
-            help="The parallel run index",
+            name=["--parallel-index"],
+            help="The parallel run index. Required if there are multiple parallel runs",
         ),
     ] = None,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show job output"""
     _setup_logging(common_flags)
-    _ = _get_app_service(common_flags)
-    # TODO
-    ...
+    app_service = _get_app_service(common_flags)
+    job_output = await app_service.get_job_output(job_number, step, action_index)
+    output.print_job_output(job_output, common_flags.output_format)
 
 
 def _setup_logging(common_flags: flags.CommonFlags) -> None:

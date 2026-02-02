@@ -274,6 +274,52 @@ def print_job_details(
         console.print()
 
 
+def print_job_output(
+    job_output: api_types.JobOutput,
+    output_format: flags.OutputFormat,
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        data = [
+            {
+                "message": Text.from_ansi(msg.message).plain,
+                "time": msg.time.isoformat(),
+                "truncated": msg.truncated,
+                "type": msg.type,
+            }
+            for msg in job_output
+        ]
+        console.print(json.dumps(data, indent=2))
+    else:
+        if not job_output:
+            console.print("No output found")
+            return
+
+        # Sort by time
+        sorted_output = sorted(job_output, key=lambda m: m.time)
+
+        for idx, msg in enumerate(sorted_output):
+            # Build heading with type and truncation status
+            heading_text = Text()
+            heading_text.append(f"# Message: {msg.type}", style="bold")
+            if msg.truncated:
+                heading_text.append(" (truncated)", style="yellow")
+            heading_text.stylize("underline")
+
+            # Print heading
+            if idx > 0:
+                console.print("\n", end="")
+            console.print(heading_text)
+
+            # Normalize line endings (remove extra carriage returns)
+            normalized_message = msg.message.replace("\r\r\n", "\n").replace(
+                "\r\n", "\n"
+            )
+
+            # Render ANSI content
+            content = Text.from_ansi(normalized_message)
+            console.print(content)
+
+
 def _format_duration_ms(duration_ms: int | None) -> str:
     """Format duration from milliseconds."""
     if duration_ms is None:

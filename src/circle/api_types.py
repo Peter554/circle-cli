@@ -260,3 +260,13 @@ class V1JobLifecycle(enum.StrEnum):
 class V1JobStep(BaseModel):
     name: str
     actions: list[V1JobAction]
+
+
+class JobOutputMessage(BaseModel):
+    message: str
+    time: datetime.datetime
+    truncated: bool
+    type: str
+
+
+type JobOutput = list[JobOutputMessage]
