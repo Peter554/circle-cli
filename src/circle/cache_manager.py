@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 from datetime import datetime, timedelta, timezone
 
 from . import api_types, cache
@@ -8,6 +9,11 @@ from . import api_types, cache
 class CacheManager:
     cache: cache.Cache
     in_progress_ttl_seconds: int = 5
+    finished_ttl_days: int = 14
+
+    @functools.cached_property
+    def finished_ttl_seconds(self) -> int:
+        return self.finished_ttl_days * 24 * 60 * 60
 
     def get_latest_pipeline(self, branch: str) -> api_types.Pipeline | None:
         cache_key = f"branch:{branch}:latest_pipeline"
@@ -40,7 +46,7 @@ class CacheManager:
     def set_workflow(self, workflow: api_types.Workflow) -> None:
         cache_key = f"workflow:{workflow.id}"
         ttl = (
-            None
+            self.finished_ttl_seconds
             if _workflow_is_finished(workflow.status)
             else self.in_progress_ttl_seconds
         )
@@ -60,13 +66,13 @@ class CacheManager:
         # No concept of pipeline completion.
         # Infer completion based on workflows.
         # Cache indefinitely only if all workflows stopped more than one minute ago.
-        cache_indefinitely = workflows and all(
+        finished = workflows and all(
             _workflow_is_finished(w.status)
             and w.stopped_at is not None
             and w.stopped_at < datetime.now(timezone.utc) - timedelta(minutes=1)
             for w in workflows
         )
-        ttl = None if cache_indefinitely else self.in_progress_ttl_seconds
+        ttl = self.finished_ttl_seconds if finished else self.in_progress_ttl_seconds
 
         self.cache.set(cache_key, workflows, ttl=ttl)
 
@@ -85,7 +91,7 @@ class CacheManager:
     ) -> None:
         cache_key = f"workflow:{workflow_id}:jobs"
         ttl = (
-            None
+            self.finished_ttl_seconds
             if _workflow_is_finished(workflow_status)
             else self.in_progress_ttl_seconds
         )
@@ -102,7 +108,7 @@ class CacheManager:
     ) -> None:
         cache_key = f"job_details:{job_number}"
         ttl = (
-            None
+            self.finished_ttl_seconds
             if _job_is_finished(job_details.status)
             else self.in_progress_ttl_seconds
         )
@@ -119,7 +125,7 @@ class CacheManager:
     ) -> None:
         cache_key = f"v1_job_details:{job_number}"
         ttl = (
-            None
+            self.finished_ttl_seconds
             if _v1_job_is_finished(job_details.lifecycle)
             else self.in_progress_ttl_seconds
         )
@@ -141,7 +147,9 @@ class CacheManager:
     ) -> None:
         cache_key = f"job_output:{job_number}:{step}:{action_index}"
         ttl = (
-            None if _v1_job_is_finished(job_lifecycle) else self.in_progress_ttl_seconds
+            self.finished_ttl_seconds
+            if _v1_job_is_finished(job_lifecycle)
+            else self.in_progress_ttl_seconds
         )
         self.cache.set(cache_key, job_output, ttl=ttl)
 
