@@ -25,7 +25,7 @@ class APIClient:
     def _semaphore(self) -> asyncio.Semaphore:
         return asyncio.Semaphore(self.max_concurrent_requests)
 
-    async def get_pipelines(
+    async def get_latest_pipelines(
         self, project_slug: str, branch: str, limit: int
     ) -> list[api_types.Pipeline]:
         """

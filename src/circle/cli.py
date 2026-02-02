@@ -3,7 +3,7 @@ from typing import Annotated
 
 import cyclopts
 
-from . import api, api_types, cache, config, flags, output, service
+from . import api, api_types, cache, cache_manager, config, flags, output, service
 
 app = cyclopts.App(
     name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
@@ -42,7 +42,7 @@ async def pipelines_list(
     """Show pipelines for a branch"""
     _setup_logging(common_flags)
     app_service = _get_app_service(common_flags)
-    pipelines = await app_service.get_pipelines(branch, n)
+    pipelines = await app_service.get_latest_pipelines(branch, n)
     output.print_pipelines(pipelines, common_flags.output_format)
 
 
@@ -62,7 +62,7 @@ async def workflows_list(
     """Show workflows for a pipeline"""
     _setup_logging(common_flags)
     app_service = _get_app_service(common_flags)
-    workflows = await app_service.get_workflows(pipeline)
+    workflows = await app_service.get_pipeline_workflows(pipeline)
     output.print_workflows(workflows, common_flags.output_format)
 
 
@@ -147,11 +147,11 @@ def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
     app_config = config.load_config(common_flags)
     api_client = api.APIClient(app_config.token)
     if common_flags.no_cache:
-        print("NOCACHE")
-        api_cache = cache.NullCache()
+        cache_ = cache.NullCache()
     else:
-        api_cache = cache.DiskcacheCache(app_config.project_slug)
-    return service.AppService(app_config, api_client, api_cache)
+        cache_ = cache.DiskcacheCache(app_config.project_slug)
+    cache_manager_ = cache_manager.CacheManager(cache_)
+    return service.AppService(app_config, api_client, cache_manager_)
 
 
 def main() -> None:
