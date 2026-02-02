@@ -14,13 +14,13 @@ A CLI for quickly viewing CircleCI pipeline status, job details, and output.
 circle --help
 
 # View recent pipelines
-circle pipelines
+circle pipelines list
 
-# View workflows for latest pipeline
-circle workflows
+# View workflows
+circle workflows list --pipeline <pipeline-id>
 
 # View jobs (filter by status)
-circle jobs --status failed
+circle jobs list --pipeline <pipeline-id> --status failed
 
 # View job details and steps
 circle job details <job-number>
@@ -39,11 +39,15 @@ circle job output <job-number> --step <step-number> --try-extract-summary
 
 When a user reports a CI failure or you need to debug failing tests:
 
-1. Check recent pipelines: `circle pipelines`
-2. View workflows for the failing pipeline: `circle workflows --pipeline <id>`
-3. Find failed jobs: `circle jobs --status failed`
+1. Check recent pipelines: `circle pipelines list`
+2. View workflows for the failing pipeline: `circle workflows list --pipeline <pipeline-id>`
+3. Find failed jobs: `circle jobs list --pipeline <pipeline-id> --status failed`
 4. View failed steps: `circle job details <job-number> --step-status failed`
 5. View output: `circle job output <job-number> --step <step-number>`.
   * Try first to extract summary via `--try-extract-summary` flag, it saves tokens.
-    If that output is unclear then run again without the flag to get the full output.
-  * For parallel runs, specify the parallel index via the `--parallel-index flag.
+    If that output is unclear or more details are required then run again without 
+    that flag to get the full output.
+  * For parallel runs, specify the parallel index via the `--parallel-index` flag.
+6. Unless the user specifies otherwise, investigate all failures.
+7. Be wary of flaky tests or unrelated failures. Try to work out which failures are 
+   likely to be most relevant.

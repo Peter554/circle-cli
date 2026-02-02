@@ -337,7 +337,10 @@ def _try_extract_summary(message: str) -> str | None:
     summary_start = None
     for i, line in enumerate(lines):
         plain_line = Text.from_ansi(line).plain
-        if plain_line.startswith("===") and "short test summary info" in plain_line.lower():
+        if (
+            plain_line.startswith("=")
+            and "short test summary info" in plain_line.lower()
+        ):
             summary_start = i
             break
 
@@ -351,7 +354,7 @@ def _try_extract_summary(message: str) -> str | None:
         plain_line = Text.from_ansi(line).plain
         # Look for the final summary line with timing info
         if (
-            plain_line.startswith("===")
+            plain_line.startswith("=")
             and ("passed" in plain_line.lower() or "failed" in plain_line.lower())
             and "in " in plain_line.lower()
         ):
