@@ -156,13 +156,21 @@ async def job_output(
             help="The parallel run index. Required if there are multiple parallel runs",
         ),
     ] = None,
+    try_extract_summary: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name=["--try-extract-summary"],
+            help="Try to extract a summary from the output",
+            negative=(),
+        ),
+    ] = False,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show job output"""
     _setup_logging(common_flags)
     app_service = _get_app_service(common_flags)
     job_output = await app_service.get_job_output(job_number, step, action_index)
-    output.print_job_output(job_output, common_flags.output_format)
+    output.print_job_output(job_output, common_flags.output_format, try_extract_summary)
 
 
 def _setup_logging(common_flags: flags.CommonFlags) -> None:

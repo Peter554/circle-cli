@@ -277,6 +277,7 @@ def print_job_details(
 def print_job_output(
     job_output: api_types.JobOutput,
     output_format: flags.OutputFormat,
+    try_extract_summary: bool = False,
 ) -> None:
     if output_format == flags.OutputFormat.json:
         data = [
@@ -305,19 +306,64 @@ def print_job_output(
                 heading_text.append(" (truncated)", style="yellow")
             heading_text.stylize("underline")
 
-            # Print heading
-            if idx > 0:
-                console.print("\n", end="")
-            console.print(heading_text)
-
             # Normalize line endings (remove extra carriage returns)
             normalized_message = msg.message.replace("\r\r\n", "\n").replace(
                 "\r\n", "\n"
             )
 
+            # Print heading
+            if idx > 0:
+                console.print("\n", end="")
+            console.print(heading_text)
+            if not normalized_message.startswith("\n"):
+                console.print("\n", end="")
+
+            # Try to extract pytest summary if requested
+            if try_extract_summary:
+                summary = _try_extract_summary(normalized_message)
+                if summary:
+                    normalized_message = summary
+
             # Render ANSI content
             content = Text.from_ansi(normalized_message)
             console.print(content)
+
+
+def _try_extract_summary(message: str) -> str | None:
+    """Extract pytest summary from output. Returns None if extraction fails."""
+    lines = message.split("\n")
+
+    # Find the "short test summary info" section
+    summary_start = None
+    for i, line in enumerate(lines):
+        plain_line = Text.from_ansi(line).plain
+        if plain_line.startswith("===") and "short test summary info" in plain_line.lower():
+            summary_start = i
+            break
+
+    if summary_start is None:
+        return None
+
+    # Find the final summary line (contains "passed", "failed", etc. with timing)
+    summary_end = None
+    for i in range(summary_start + 1, len(lines)):
+        line = lines[i]
+        plain_line = Text.from_ansi(line).plain
+        # Look for the final summary line with timing info
+        if (
+            plain_line.startswith("===")
+            and ("passed" in plain_line.lower() or "failed" in plain_line.lower())
+            and "in " in plain_line.lower()
+        ):
+            summary_end = i
+            break
+
+    if summary_end is None:
+        return None
+
+    # Extract the summary section
+    summary_lines = lines[summary_start : summary_end + 1]
+    return "\n".join(summary_lines)
 
 
 def _format_duration_ms(duration_ms: int | None) -> str:
