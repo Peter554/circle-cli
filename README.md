@@ -63,7 +63,7 @@ A skill is available for [Claude Code](https://claude.com/claude-code) that teac
 
 ```bash
 mkdir -p ~/.claude/skills/circle-cli
-cp agent-skill/SKILL.md ~/.claude/skills/circle-cli/
+cp claude-skill/SKILL.md ~/.claude/skills/circle-cli/
 ```
 
 Once installed, Claude can automatically use the CLI to investigate CI failures, check pipeline status, and view job output.
