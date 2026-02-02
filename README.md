@@ -13,7 +13,10 @@ A CLI for viewing CircleCI pipelines, workflows, jobs, and output.
 ## Installation
 
 ```bash
-uv tool install circle --from git+https://github.com/Peter554/circle-cli
+uv tool install --from git+https://github.com/Peter554/circle-cli circle
+
+# or
+uvx --from git+https://github.com/Peter554/circle-cli circle
 ```
 
 ## Configuration
