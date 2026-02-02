@@ -150,7 +150,7 @@ def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
         print("NOCACHE")
         api_cache = cache.NullCache()
     else:
-        api_cache = cache.DiskcacheCache("api")
+        api_cache = cache.DiskcacheCache(app_config.project_slug)
     return service.AppService(app_config, api_client, api_cache)
 
 

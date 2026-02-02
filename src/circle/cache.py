@@ -1,6 +1,7 @@
 import dataclasses
 import functools
 import logging
+import pathlib
 import typing
 
 import diskcache
@@ -25,12 +26,15 @@ class NullCache:
 
 @dataclasses.dataclass(frozen=True)
 class DiskcacheCache:
-    name: str
+    project_slug: str
     size_limit_mb: int = 100
 
     @functools.cached_property
     def _cache(self) -> diskcache.Cache:
-        cache_dir = platformdirs.user_cache_dir(f"circle-cli--{self.name}")
+        cache_dir = (
+            pathlib.Path(platformdirs.user_cache_dir("circle-cli")) / self.project_slug
+        )
+        cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info("Diskcache using directory %s", cache_dir)
         size_limit = self.size_limit_mb * 1024 * 1024
         return diskcache.Cache(
