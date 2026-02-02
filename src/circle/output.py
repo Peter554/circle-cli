@@ -126,11 +126,12 @@ def print_jobs(
             return
 
         # Display jobs for each workflow
-        for workflow, job_list in jobs:
-            if not job_list:
-                continue
-
+        for workflow, job_list in sorted(jobs, key=lambda x: x[0].created_at):
             console.print(f"\n[bold]Workflow:[/bold] {workflow.name} ({workflow.id})\n")
+
+            if not job_list:
+                console.print("No matching jobs")
+                continue
 
             # Sort jobs by status priority, then chronologically
             sorted_jobs = sorted(
@@ -171,16 +172,6 @@ def print_jobs(
 
             console.print(table)
             console.print()
-
-
-def print_job_output(
-    job_output: api_types.V1JobDetail,
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        console.print(json.dumps(job_output.model_dump(mode="json"), indent=2))
-    else:
-        raise NotImplementedError("Pretty output not yet implemented")
 
 
 def _format_pipeline_state(state: api_types.PipelineState) -> str:
