@@ -149,6 +149,67 @@ class JobType(enum.StrEnum):
     approval = "approval"
 
 
+class JobDetails(BaseModel):
+    web_url: str
+    project: JobProject
+    parallel_runs: list[ParallelRun]
+    started_at: datetime.datetime
+    latest_workflow: LatestWorkflow
+    name: str
+    executor: Executor
+    parallelism: int
+    status: JobStatus
+    number: int
+    pipeline: JobPipeline
+    duration: int | None
+    created_at: datetime.datetime
+    messages: list[JobMessage]
+    contexts: list[JobContext]
+    organization: JobOrganization
+    queued_at: datetime.datetime
+    stopped_at: datetime.datetime | None
+
+
+class JobProject(BaseModel):
+    id: str
+    slug: str
+    name: str
+    external_url: str
+
+
+class ParallelRun(BaseModel):
+    index: int
+    status: str
+
+
+class LatestWorkflow(BaseModel):
+    id: str
+    name: str
+
+
+class Executor(BaseModel):
+    resource_class: str
+    type: str | None = None
+
+
+class JobPipeline(BaseModel):
+    id: str
+
+
+class JobMessage(BaseModel):
+    type: str
+    message: str
+    reason: str | None = None
+
+
+class JobContext(BaseModel):
+    name: str
+
+
+class JobOrganization(BaseModel):
+    name: str
+
+
 class V1JobDetails(BaseModel):
     status: V1JobStatus
     lifecycle: V1JobLifecycle
@@ -171,6 +232,14 @@ class V1JobStatus(enum.StrEnum):
     success = "success"
 
 
+class V1JobAction(BaseModel):
+    index: int
+    status: str  # Unsure of enum here (spec unclear)
+    start_time: datetime.datetime | None = None
+    end_time: datetime.datetime | None = None
+    output_url: str | None = None
+
+
 class V1JobOutcome(enum.StrEnum):
     canceled = "canceled"
     infrastructure_fail = "infrastructure_fail"
@@ -191,11 +260,3 @@ class V1JobLifecycle(enum.StrEnum):
 class V1JobStep(BaseModel):
     name: str
     actions: list[V1JobAction]
-
-
-class V1JobAction(BaseModel):
-    index: int
-    status: str  # Unsure of enum here (spec unclear)
-    start_time: datetime.datetime | None = None
-    end_time: datetime.datetime | None = None
-    output_url: str | None = None

@@ -91,8 +91,25 @@ class CacheManager:
         )
         self.cache.set(cache_key, jobs, ttl=ttl)
 
+    def get_job_details(self, job_number: int) -> api_types.JobDetails | None:
+        cache_key = f"job_details:{job_number}"
+        return self.cache.get(cache_key)
+
+    def set_job_details(
+        self,
+        job_number: int,
+        job_details: api_types.JobDetails,
+    ) -> None:
+        cache_key = f"job_details:{job_number}"
+        ttl = (
+            None
+            if _job_is_finished(job_details.status)
+            else self.in_progress_ttl_seconds
+        )
+        self.cache.set(cache_key, job_details, ttl=ttl)
+
     def get_v1_job_details(self, job_number: int) -> api_types.V1JobDetails | None:
-        cache_key = f"v1_job_details:{job_number}:details"
+        cache_key = f"v1_job_details:{job_number}"
         return self.cache.get(cache_key)
 
     def set_v1_job_details(
@@ -100,7 +117,7 @@ class CacheManager:
         job_number: int,
         job_details: api_types.V1JobDetails,
     ) -> None:
-        cache_key = f"v1_job_details:{job_number}:details"
+        cache_key = f"v1_job_details:{job_number}"
         ttl = (
             None
             if _v1_job_is_finished(job_details.lifecycle)

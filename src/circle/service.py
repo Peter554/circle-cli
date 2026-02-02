@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import dataclasses
 from collections.abc import Set
@@ -117,14 +119,13 @@ class AppService:
         # Pair workflows with their jobs
         return list(zip(workflows, jobs_lists))
 
-    async def get_v1_job_details(self, job_number: int) -> api_types.V1JobDetails:
-        job_details = self.cache_manager.get_v1_job_details(job_number)
-        if job_details is None:
-            job_details = await self.api_client.get_v1_job_details(
-                self.app_config.project_slug, job_number
-            )
-            self.cache_manager.set_v1_job_details(job_number, job_details)
-        return job_details
+    async def get_job_details(self, job_number: int) -> JobDetails:
+        # Fetch both details concurrently
+        async with asyncio.TaskGroup() as tg:
+            v2_task = tg.create_task(self._get_job_details(job_number))
+            v1_task = tg.create_task(self._get_v1_job_details(job_number))
+
+        return JobDetails(v2_task.result(), v1_task.result())
 
     async def get_job_output(self, job_number: int) -> api_types.V1JobDetails:
         """Get job output."""
@@ -163,3 +164,27 @@ class AppService:
             jobs = await self.api_client.get_jobs(workflow.id)
             self.cache_manager.set_workflow_jobs(workflow.id, workflow.status, jobs)
         return jobs
+
+    async def _get_job_details(self, job_number: int) -> api_types.JobDetails:
+        job_details = self.cache_manager.get_job_details(job_number)
+        if job_details is None:
+            job_details = await self.api_client.get_job_details(
+                self.app_config.project_slug, job_number
+            )
+            self.cache_manager.set_job_details(job_number, job_details)
+        return job_details
+
+    async def _get_v1_job_details(self, job_number: int) -> api_types.V1JobDetails:
+        v1_job_details = self.cache_manager.get_v1_job_details(job_number)
+        if v1_job_details is None:
+            v1_job_details = await self.api_client.get_v1_job_details(
+                self.app_config.project_slug, job_number
+            )
+            self.cache_manager.set_v1_job_details(job_number, v1_job_details)
+        return v1_job_details
+
+
+@dataclasses.dataclass(frozen=True)
+class JobDetails:
+    details: api_types.JobDetails
+    v1_job_details: api_types.V1JobDetails

@@ -66,6 +66,22 @@ class APIClient:
         items = await self._fetch_paginated(url, max_items=None)
         return [api_types.Job.model_validate(item) for item in items]
 
+    async def get_job_details(
+        self, project_slug: str, job_number: int
+    ) -> api_types.JobDetails:
+        """
+        GET /project/{project-slug}/job/{job-number}
+        """
+        url = f"{self.base_url_v2}/project/{project_slug}/job/{job_number}"
+        async with httpx.AsyncClient() as client:
+            async with self._semaphore:
+                response = await client.get(url, headers=self._headers(), timeout=30)
+            if response.status_code != 200:
+                raise APIError(
+                    f"Failed to fetch from {url}: {response.status_code} {response.text}"
+                )
+            return api_types.JobDetails.model_validate(response.json())
+
     async def get_v1_job_details(
         self, project_slug: str, job_number: int
     ) -> api_types.V1JobDetails:
