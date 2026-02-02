@@ -1,53 +1,35 @@
 ---
 name: circle-cli
-description: Views CircleCI pipelines, workflows, jobs, and output. Use when investigating CI failures, debugging test failures, checking pipeline status, or viewing job logs without opening a browser.
+description: Views CircleCI pipelines, workflows, jobs, and output. Use when investigating CI failures or checking pipeline status.
 ---
 
 # CircleCI CLI
 
-A CLI for quickly viewing CircleCI pipeline status, job details, and output.
-
-## Quick reference
+## Commands
 
 ```bash
-# View help
-circle --help
+circle pipelines list                                    # Recent pipelines for current branch
+circle pipelines list --branch main -n 5                 # 5 pipelines for main branch
 
-# View recent pipelines
-circle pipelines list
+circle workflows list --pipeline <id>                    # Workflows for a pipeline
 
-# View workflows
-circle workflows list --pipeline <pipeline-id>
+circle jobs list --pipeline <id>                         # All jobs for a pipeline
+circle jobs list --pipeline <id> --status failed         # Only failed jobs
 
-# View jobs (filter by status)
-circle jobs list --pipeline <pipeline-id> --status failed
+circle jobs details <job-number>                         # Job steps
+circle jobs details <job-number> --step-status failed    # Only failed steps
 
-# View job details and steps
-circle job details <job-number>
-
-# Filter job steps by status
-circle job details <job-number> --step-status failed
-
-# View job output
-circle job output <job-number> --step <step-number>
-
-# Extract pytest summary
-circle job output <job-number> --step <step-number> --try-extract-summary
+circle jobs output <job-number> --step <n>               # Step output
+circle jobs output <job-number> --step <n> --try-extract-summary   # Extract test summary
+circle jobs output <job-number> --step <n> --parallel-index <i>    # Parallel run output
 ```
 
-## Investigating a failed pipeline
+## Investigating failures
 
-When a user reports a CI failure or you need to debug failing tests:
+1. `circle pipelines list` - find the failing pipeline
+2. `circle workflows list --pipeline <id>` - see workflow status
+3. `circle jobs list --pipeline <id> --status failed` - find failed jobs
+4. `circle jobs details <job-number> --step-status failed` - find failed steps
+5. `circle jobs output <job-number> --step <n> --try-extract-summary` - view output (try summary first to save tokens, then full output if needed). For parallel runs, add `--parallel-index <i>`.
 
-1. Check recent pipelines: `circle pipelines list`
-2. View workflows for the failing pipeline: `circle workflows list --pipeline <pipeline-id>`
-3. Find failed jobs: `circle jobs list --pipeline <pipeline-id> --status failed`
-4. View failed steps: `circle job details <job-number> --step-status failed`
-5. View output: `circle job output <job-number> --step <step-number>`.
-  * Try first to extract summary via `--try-extract-summary` flag, it saves tokens.
-    If that output is unclear or more details are required then run again without 
-    that flag to get the full output.
-  * For parallel runs, specify the parallel index via the `--parallel-index` flag.
-6. Unless the user specifies otherwise, investigate all failures.
-7. Be wary of flaky tests or unrelated failures. Try to work out which failures are 
-   likely to be most relevant.
+Investigate all failures unless told otherwise. Watch for flaky or unrelated failures.
