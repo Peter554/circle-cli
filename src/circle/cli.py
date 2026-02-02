@@ -22,6 +22,9 @@ app.command(workflows_app, alias=["workflow", "w"])
 jobs_app = cyclopts.App(name="jobs")
 app.command(jobs_app, alias=["job", "j"])
 
+cache_app = cyclopts.App(name="cache", help="Manage the local cache")
+app.command(cache_app)
+
 
 @app.default
 @pipelines_app.default
@@ -177,6 +180,57 @@ async def job_output(
     output.print_job_output(job_output, common_flags.output_format, try_extract_summary)
 
 
+@cache_app.command(name="size")
+def cache_size(
+    *,
+    project_slug_flags: flags.ProjectSlugFlags = flags.ProjectSlugFlags(),
+) -> None:
+    """Show total cache size"""
+    _setup_logging(project_slug_flags.log_level)
+    app_config = config.load_config(
+        "", project_slug_flags.vcs, project_slug_flags.org, project_slug_flags.repo
+    )
+    cache_ = cache.DiskcacheCache(app_config.project_slug)
+    size_bytes = cache_.size()
+    console = Console()
+    if size_bytes < 1024:
+        console.print(f"{size_bytes} B")
+    elif size_bytes < 1024 * 1024:
+        console.print(f"{size_bytes / 1024:.1f} KB")
+    else:
+        console.print(f"{size_bytes / (1024 * 1024):.1f} MB")
+
+
+@cache_app.command(name="prune")
+def cache_prune(
+    *,
+    project_slug_flags: flags.ProjectSlugFlags = flags.ProjectSlugFlags(),
+) -> None:
+    """Proactively remove expired items (expired items are also cleared on access)"""
+    _setup_logging(project_slug_flags.log_level)
+    app_config = config.load_config(
+        "", project_slug_flags.vcs, project_slug_flags.org, project_slug_flags.repo
+    )
+    cache_ = cache.DiskcacheCache(app_config.project_slug)
+    cache_.prune()
+    Console().print("Pruned expired cache entries")
+
+
+@cache_app.command(name="clear")
+def cache_clear(
+    *,
+    project_slug_flags: flags.ProjectSlugFlags = flags.ProjectSlugFlags(),
+) -> None:
+    """Clear all items from the cache"""
+    _setup_logging(project_slug_flags.log_level)
+    app_config = config.load_config(
+        "", project_slug_flags.vcs, project_slug_flags.org, project_slug_flags.repo
+    )
+    cache_ = cache.DiskcacheCache(app_config.project_slug)
+    cache_.clear()
+    Console().print("Cache cleared")
+
+
 @app.command(name="install-claude-skill")
 def install_claude_skill(
     *,
@@ -222,7 +276,9 @@ def _setup_logging(log_level: str) -> None:
 
 
 def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
-    app_config = config.load_config(common_flags)
+    app_config = config.load_config(
+        common_flags.token, common_flags.vcs, common_flags.org, common_flags.repo
+    )
     api_client = api.APIClient(app_config.token)
     if common_flags.no_cache:
         cache_ = cache.NullCache()

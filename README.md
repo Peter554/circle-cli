@@ -147,6 +147,34 @@ circle jobs output 12345 --step 5 --try-extract-summary
 circle jobs output 12345 --step 5 --parallel-index 2
 ```
 
+### cache
+
+Manage the local cache. Cache is stored per-project based on the project slug.
+
+#### size
+
+Show total cache size.
+
+```bash
+circle cache size
+```
+
+#### prune
+
+Proactively remove expired items from the cache. Note that expired items are also cleared automatically on access.
+
+```bash
+circle cache prune
+```
+
+#### clear
+
+Clear all items from the cache.
+
+```bash
+circle cache clear
+```
+
 ## Global Flags
 
 These flags are available on all commands:

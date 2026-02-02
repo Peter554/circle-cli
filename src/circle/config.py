@@ -7,8 +7,6 @@ from pathlib import Path
 
 import pydantic
 
-from . import flags
-
 
 class AppConfigError(Exception): ...
 
@@ -26,7 +24,7 @@ class AppConfig(pydantic.BaseModel):
 
     @property
     def project_slug(self) -> str:
-        """The full CircleCI project slug."""
+        """The CircleCI project slug."""
         return f"{self.vcs}/{self.org}/{self.repo}"
 
 
@@ -40,7 +38,12 @@ def _find_config_file() -> Path | None:
     return None
 
 
-def load_config(common_flags: flags.CommonFlags) -> AppConfig:
+def load_config(
+    token_flag: str | None,
+    vcs_flag: str | None,
+    org_flag: str | None,
+    repo_flag: str | None,
+) -> AppConfig:
     """
     Load configuration from CLI args, env vars, config file, and git.
     """
@@ -51,16 +54,12 @@ def load_config(common_flags: flags.CommonFlags) -> AppConfig:
 
     # Resolve each field: CLI > env > file
     resolved_token = (
-        common_flags.token or os.environ.get("CIRCLE_TOKEN") or file_config.get("token")
+        token_flag or os.environ.get("CIRCLE_TOKEN") or file_config.get("token")
     )
-    resolved_vcs = (
-        common_flags.vcs or os.environ.get("CIRCLE_VCS") or file_config.get("vcs")
-    )
-    resolved_org = (
-        common_flags.org or os.environ.get("CIRCLE_ORG") or file_config.get("org")
-    )
+    resolved_vcs = vcs_flag or os.environ.get("CIRCLE_VCS") or file_config.get("vcs")
+    resolved_org = org_flag or os.environ.get("CIRCLE_ORG") or file_config.get("org")
     resolved_repo = (
-        common_flags.repo or os.environ.get("CIRCLE_REPO") or file_config.get("repo")
+        repo_flag or os.environ.get("CIRCLE_REPO") or file_config.get("repo")
     )
 
     try:

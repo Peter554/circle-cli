@@ -56,3 +56,15 @@ class DiskcacheCache:
         if ttl == 0:
             return
         self._cache.set(k, v, expire=ttl)
+
+    def size(self) -> int:
+        """Return cache size in bytes."""
+        return self._cache.volume()
+
+    def prune(self) -> None:
+        """Remove expired items."""
+        self._cache.expire()
+
+    def clear(self) -> None:
+        """Clear all items."""
+        self._cache.clear()

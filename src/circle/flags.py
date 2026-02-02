@@ -12,14 +12,9 @@ class OutputFormat(enum.StrEnum):
 
 @cyclopts.Parameter(name="*")
 @dataclasses.dataclass(frozen=True)
-class CommonFlags:
-    token: Annotated[
-        str | None,
-        cyclopts.Parameter(
-            name=["--token"],
-            help="CircleCI API token. Set via the CIRCLE_TOKEN environment variable, the .circle-cli.toml config file or the --token flag",
-        ),
-    ] = None
+class ProjectSlugFlags:
+    """Flags for identifying the project (vcs, org, repo)."""
+
     vcs: Annotated[
         str | None,
         cyclopts.Parameter(
@@ -48,6 +43,20 @@ class CommonFlags:
             help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         ),
     ] = "WARNING"
+
+
+@cyclopts.Parameter(name="*")
+@dataclasses.dataclass(frozen=True)
+class CommonFlags(ProjectSlugFlags):
+    """All common flags including token and project slug."""
+
+    token: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            name=["--token"],
+            help="CircleCI API token. Set via the CIRCLE_TOKEN environment variable, the .circle-cli.toml config file or the --token flag",
+        ),
+    ] = None
     no_cache: Annotated[
         bool,
         cyclopts.Parameter(
