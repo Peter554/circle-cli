@@ -1,7 +1,11 @@
 import logging
+import shutil
+from pathlib import Path
 from typing import Annotated
 
 import cyclopts
+from rich.console import Console
+from rich.prompt import Confirm
 
 from . import api, api_types, cache, cache_manager, config, flags, output, service
 
@@ -40,7 +44,7 @@ async def pipelines_list(
     ] = 3,
 ) -> None:
     """Show pipelines for a branch"""
-    _setup_logging(common_flags)
+    _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     pipelines = await app_service.get_latest_pipelines(branch, n)
     output.print_pipelines(pipelines, common_flags.output_format)
@@ -60,7 +64,7 @@ async def workflows_list(
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show workflows for a pipeline"""
-    _setup_logging(common_flags)
+    _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     workflows = await app_service.get_pipeline_workflows(pipeline)
     output.print_workflows(workflows, common_flags.output_format)
@@ -96,7 +100,7 @@ async def jobs_list(
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show jobs for workflows"""
-    _setup_logging(common_flags)
+    _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     jobs = await app_service.get_jobs(
         pipeline, workflow, set(status) if status else None
@@ -124,7 +128,7 @@ async def job_details(
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show job details"""
-    _setup_logging(common_flags)
+    _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     job_details = await app_service.get_job_details(
         job_number, set(step_status) if step_status else None
@@ -167,15 +171,52 @@ async def job_output(
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show job output"""
-    _setup_logging(common_flags)
+    _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     job_output = await app_service.get_job_output(job_number, step, action_index)
     output.print_job_output(job_output, common_flags.output_format, try_extract_summary)
 
 
-def _setup_logging(common_flags: flags.CommonFlags) -> None:
+@app.command(name="install-claude-skill")
+def install_claude_skill(
+    *,
+    skills_dir: Annotated[
+        Path,
+        cyclopts.Parameter(
+            name=["--skills-dir", "-d"],
+            help="The directory where Claude skills are stored",
+        ),
+    ] = Path.home() / ".claude" / "skills",
+) -> None:
+    """Install the circle-cli Claude skill"""
+    console = Console()
+    skill_name = "circle-cli"
+    target_dir = skills_dir / skill_name
+    target_file = target_dir / "SKILL.md"
+
+    # Find the source skill file (relative to this package)
+    source_file = Path(__file__).parent / "claude_skill" / "SKILL.md"
+    if not source_file.exists():
+        console.print(f"[red]Error:[/red] Skill file not found at {source_file}")
+        raise SystemExit(1)
+
+    # Check if skill already exists
+    if target_file.exists():
+        if not Confirm.ask(
+            f"Skill already exists at [cyan]{target_file}[/cyan]. Overwrite?"
+        ):
+            console.print("Installation cancelled.")
+            return
+
+    # Create target directory and copy skill
+    target_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(source_file, target_file)
+    console.print(f"[green]Installed skill to[/green] {target_file}")
+
+
+def _setup_logging(log_level: str) -> None:
     logging.basicConfig(
-        level=common_flags.log_level.upper(),
+        level=log_level.upper(),
         format="%(levelname)s [%(name)s] %(message)s",
     )
 

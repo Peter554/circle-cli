@@ -59,11 +59,12 @@ circle job output <job-number> --step <step-number> --try-extract-summary
 
 ## Claude Code Integration
 
-A skill is available for [Claude Code](https://claude.com/claude-code) that teaches Claude how to use this CLI. Install it to your personal skills directory:
+A skill is available for [Claude Code](https://claude.com/claude-code) that teaches Claude how to use this CLI. Install it with:
 
 ```bash
-mkdir -p ~/.claude/skills/circle-cli
-cp claude-skill/SKILL.md ~/.claude/skills/circle-cli/
+circle install-claude-skill
 ```
+
+This installs the skill to `~/.claude/skills/circle-cli/`. Use `--skills-dir` to specify a different location.
 
 Once installed, Claude can automatically use the CLI to investigate CI failures, check pipeline status, and view job output.
