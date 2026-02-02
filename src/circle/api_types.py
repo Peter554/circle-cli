@@ -149,7 +149,7 @@ class JobType(enum.StrEnum):
     approval = "approval"
 
 
-class V1JobDetail(BaseModel):
+class V1JobDetails(BaseModel):
     status: V1JobStatus
     lifecycle: V1JobLifecycle
     outcome: V1JobOutcome | None = None

@@ -91,6 +91,23 @@ class CacheManager:
         )
         self.cache.set(cache_key, jobs, ttl=ttl)
 
+    def get_v1_job_details(self, job_number: int) -> api_types.V1JobDetails | None:
+        cache_key = f"v1_job_details:{job_number}:details"
+        return self.cache.get(cache_key)
+
+    def set_v1_job_details(
+        self,
+        job_number: int,
+        job_details: api_types.V1JobDetails,
+    ) -> None:
+        cache_key = f"v1_job_details:{job_number}:details"
+        ttl = (
+            None
+            if _v1_job_is_finished(job_details.lifecycle)
+            else self.in_progress_ttl_seconds
+        )
+        self.cache.set(cache_key, job_details, ttl=ttl)
+
 
 def _workflow_is_finished(workflow_status: api_types.WorkflowStatus) -> bool:
     return workflow_status in {

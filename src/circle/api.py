@@ -66,9 +66,9 @@ class APIClient:
         items = await self._fetch_paginated(url, max_items=None)
         return [api_types.Job.model_validate(item) for item in items]
 
-    async def get_v1_job_detail(
+    async def get_v1_job_details(
         self, project_slug: str, job_number: int
-    ) -> api_types.V1JobDetail:
+    ) -> api_types.V1JobDetails:
         """
         GET /project/{project_slug}/{build-num}
         """
@@ -80,7 +80,7 @@ class APIClient:
                 raise APIError(
                     f"Failed to fetch from {url}: {response.status_code} {response.text}"
                 )
-            return api_types.V1JobDetail.model_validate(response.json())
+            return api_types.V1JobDetails.model_validate(response.json())
 
     def _headers(self) -> dict[str, str]:
         return {"Circle-Token": self.token}

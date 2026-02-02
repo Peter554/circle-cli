@@ -117,11 +117,20 @@ class AppService:
         # Pair workflows with their jobs
         return list(zip(workflows, jobs_lists))
 
-    async def get_job_output(self, job_number: int) -> api_types.V1JobDetail:
+    async def get_v1_job_details(self, job_number: int) -> api_types.V1JobDetails:
+        job_details = self.cache_manager.get_v1_job_details(job_number)
+        if job_details is None:
+            job_details = await self.api_client.get_v1_job_details(
+                self.app_config.project_slug, job_number
+            )
+            self.cache_manager.set_v1_job_details(job_number, job_details)
+        return job_details
+
+    async def get_job_output(self, job_number: int) -> api_types.V1JobDetails:
         """Get job output."""
         # TODO Fetch output from output_url
         # TODO Caching
-        return await self.api_client.get_v1_job_detail(
+        return await self.api_client.get_v1_job_details(
             self.app_config.project_slug, job_number
         )
 
