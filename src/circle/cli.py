@@ -104,6 +104,34 @@ async def jobs_list(
     output.print_jobs(jobs, common_flags.output_format)
 
 
+@jobs_app.command(name="details", alias=["detail"])
+async def job_details(
+    job_number: Annotated[
+        int,
+        cyclopts.Parameter(
+            help="The job number",
+        ),
+    ],
+    *,
+    step_status: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            name=["--step-status", "-s"],
+            help="Filter steps by status. Can be specified multiple times.",
+            negative=(),
+        ),
+    ] = None,
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
+) -> None:
+    """Show job details"""
+    _setup_logging(common_flags)
+    app_service = _get_app_service(common_flags)
+    job_details = await app_service.get_job_details(
+        job_number, set(step_status) if step_status else None
+    )
+    output.print_job_details(job_details, common_flags.output_format)
+
+
 @jobs_app.command(name="output")
 async def job_output(
     job_number: Annotated[

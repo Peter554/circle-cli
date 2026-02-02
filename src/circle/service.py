@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+from collections import defaultdict
 from collections.abc import Set
 
 from . import api, api_types, cache_manager, config, git
@@ -119,18 +120,43 @@ class AppService:
         # Pair workflows with their jobs
         return list(zip(workflows, jobs_lists))
 
-    async def get_job_details(self, job_number: int) -> JobDetails:
+    async def get_job_details(
+        self, job_number: int, step_statuses: set[str] | None = None
+    ) -> JobDetailsWithSteps:
         # Fetch both details concurrently
         async with asyncio.TaskGroup() as tg:
             v2_task = tg.create_task(self._get_job_details(job_number))
             v1_task = tg.create_task(self._get_v1_job_details(job_number))
 
-        return JobDetails(v2_task.result(), v1_task.result())
+        details = v2_task.result()
+        v1_details = v1_task.result()
+
+        # Group steps by action index (parallel run)
+        steps_by_action_index: dict[int, list[StepAction]] = defaultdict(list)
+        for step_idx, step in enumerate(v1_details.steps):
+            for action in step.actions:
+                steps_by_action_index[action.index].append(
+                    StepAction(step_idx, step, action)
+                )
+
+        # Filter by status if specified
+        if step_statuses is not None:
+            steps_by_action_index = {
+                action_index: [
+                    step_action
+                    for step_action in step_actions
+                    if step_action.action.status in step_statuses
+                ]
+                for action_index, step_actions in steps_by_action_index.items()
+            }
+
+        return JobDetailsWithSteps(details, steps_by_action_index)
 
     async def get_job_output(self, job_number: int) -> api_types.V1JobDetails:
         """Get job output."""
         # TODO Fetch output from output_url
         # TODO Caching
+        # We can't cache the V1 job details call here since the presigned URL expires
         return await self.api_client.get_v1_job_details(
             self.app_config.project_slug, job_number
         )
@@ -185,6 +211,13 @@ class AppService:
 
 
 @dataclasses.dataclass(frozen=True)
-class JobDetails:
+class JobDetailsWithSteps:
     details: api_types.JobDetails
-    v1_job_details: api_types.V1JobDetails
+    steps_by_action_index: dict[int, list[StepAction]]
+
+
+@dataclasses.dataclass(frozen=True)
+class StepAction:
+    step_index: int
+    step: api_types.V1JobStep
+    action: api_types.V1JobAction

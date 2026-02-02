@@ -5,11 +5,12 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 import humanize
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
-from . import api_types, flags
+from . import api_types, flags, service
 
 console = Console()
 
@@ -178,6 +179,154 @@ def print_jobs(
 
             console.print(table)
             console.print()
+
+
+def print_job_details(
+    job_details: service.JobDetailsWithSteps,
+    output_format: flags.OutputFormat,
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        data = {
+            "details": job_details.details.model_dump(mode="json"),
+            "steps_by_action_index": {
+                action_index: [
+                    {
+                        "step_index": sa.step_index,
+                        "step": sa.step.model_dump(mode="json"),
+                        "action": sa.action.model_dump(mode="json"),
+                    }
+                    for sa in step_actions
+                ]
+                for action_index, step_actions in job_details.steps_by_action_index.items()
+            },
+        }
+        console.print(json.dumps(data, indent=2))
+    else:
+        details = job_details.details
+
+        # Build job summary
+        status = _format_job_status(details.status)
+        started = _format_relative_time(details.started_at)
+        duration = _format_duration_ms(details.duration)
+        url = details.web_url
+
+        summary = f"""[bold]Number:[/bold] {details.number}
+[bold]Name:[/bold] {details.name}
+[bold]Status:[/bold] {status}
+[bold]Started:[/bold] {started}
+[bold]Duration:[/bold] {duration}
+[bold]Parallelism:[/bold] {details.parallelism}
+[bold]Link:[/bold] {_format_link(url)}"""
+
+        # Build step tables
+        renderables = [Text.from_markup(summary)]
+
+        for action_index in sorted(job_details.steps_by_action_index.keys()):
+            step_actions = job_details.steps_by_action_index[action_index]
+
+            # Calculate parallel run duration
+            actions = [sa.action for sa in step_actions]
+            run_duration = _calculate_parallel_run_duration(actions)
+
+            # Add spacing and header
+            renderables.append(Text())
+            if details.parallelism > 1:
+                renderables.append(
+                    Text.from_markup(
+                        f"[bold]Parallel Run {action_index}[/bold] ({run_duration})"
+                    )
+                )
+            renderables.append(Text())
+
+            if not step_actions:
+                renderables.append(Text("No matching steps"))
+                continue
+
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("Step")
+            table.add_column("Name", overflow="ellipsis", max_width=80)
+            table.add_column("Status")
+            table.add_column("Duration")
+
+            for step_action in step_actions:
+                step_status = _format_step_status(step_action.action.status)
+                step_duration = _format_duration(
+                    step_action.action.start_time, step_action.action.end_time
+                )
+
+                table.add_row(
+                    str(step_action.step_index),
+                    step_action.step.name,
+                    step_status,
+                    step_duration,
+                )
+
+            renderables.append(table)
+
+        # Combine everything in a panel
+        panel = Panel(
+            Group(*renderables),
+            title=f"[bold]Job {details.number}[/bold]",
+            border_style=_get_job_border_style(details.status),
+        )
+        console.print()
+        console.print(panel)
+        console.print()
+
+
+def _format_duration_ms(duration_ms: int | None) -> str:
+    """Format duration from milliseconds."""
+    if duration_ms is None:
+        return ""
+    seconds = duration_ms / 1000
+    return humanize.naturaldelta(seconds)
+
+
+def _format_step_status(status: str) -> str:
+    """Format step status with color."""
+    if status == "success":
+        return f"[green]{status}[/green]"
+    elif status == "failed":
+        return f"[red]{status}[/red]"
+    return str(status)
+
+
+def _calculate_parallel_run_duration(actions: list[api_types.V1JobAction]) -> str:
+    """Calculate duration of a parallel run from its actions."""
+    start_times = [a.start_time for a in actions if a.start_time]
+
+    if not start_times:
+        return ""
+
+    earliest_start = min(start_times)
+
+    # Check if any actions are still running (no end_time)
+    if any(a.end_time is None for a in actions):
+        return _format_duration(earliest_start, None)
+
+    # All actions completed - find latest end
+    end_times = [a.end_time for a in actions if a.end_time]
+    latest_end = max(end_times)
+    return _format_duration(earliest_start, latest_end)
+
+
+def _get_job_border_style(status: api_types.JobStatus) -> str:
+    """Get border style for job panel based on status."""
+    if status == api_types.JobStatus.success:
+        return "green"
+    elif status in {
+        api_types.JobStatus.failed,
+        api_types.JobStatus.infrastructure_fail,
+        api_types.JobStatus.timedout,
+        api_types.JobStatus.unauthorized,
+    }:
+        return "red"
+    elif status in {
+        api_types.JobStatus.running,
+        api_types.JobStatus.queued,
+    }:
+        return "yellow"
+    return "white"
 
 
 def _format_pipeline_state(state: api_types.PipelineState) -> str:
