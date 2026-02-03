@@ -9,7 +9,7 @@ A CLI for viewing CircleCI pipelines, workflows, jobs, and output.
 - View detailed job information including steps
 - Display job output with ANSI color support
 - Smart caching and concurrent API requests for faster responses
-- Integration with Claude Code (via skill)
+- Token efficient integration with Claude Code (via skill)
 
 ## Installation
 
@@ -17,9 +17,6 @@ A CLI for viewing CircleCI pipelines, workflows, jobs, and output.
 uv tool install --from git+https://github.com/Peter554/circle-cli circle
 # or (suggested to create an alias)
 uvx --from git+https://github.com/Peter554/circle-cli circle  
-
-# pinning to a specific version (see published tags)
-uv tool install --from git+https://github.com/Peter554/circle-cli@v0.1.0 circle
 ```
 
 ## Configuration
@@ -143,7 +140,7 @@ Show test metadata for a job. Useful for identifying which tests failed before v
 
 **Flags:**
 - `--status`, `-s` - Filter by test result (success, failure/failed, skipped). Can be specified multiple times.
-- `--file` - Filter tests by file path suffix
+- `--file`, `-f` - Filter tests by file path suffix
 - `--show-messages`, `-m` - Show failure messages
 
 ```bash
@@ -216,7 +213,7 @@ These flags are available on all commands:
 - `--vcs` - Version control system (`gh` or `bb`)
 - `--org` - Organization name
 - `--repo` - Repository name
-- `--output-format`, `-f` - Output format (`pretty` or `json`)
+- `--output-format` - Output format (`pretty` or `json`)
 - `--no-cache` - Disable caching
 - `--log-level` - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 

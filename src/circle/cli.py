@@ -209,7 +209,7 @@ async def job_tests(
     file: Annotated[
         str | None,
         cyclopts.Parameter(
-            name=["--file"],
+            name=["--file", "-f"],
             help="Filter tests by file path suffix.",
         ),
     ] = None,

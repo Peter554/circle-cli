@@ -68,7 +68,7 @@ class CommonFlags(ProjectSlugFlags):
     output_format: Annotated[
         OutputFormat,
         cyclopts.Parameter(
-            name=["--output-format", "-f"],
+            name=["--output-format"],
             help="Output format",
         ),
     ] = OutputFormat.pretty
