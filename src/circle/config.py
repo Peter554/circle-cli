@@ -56,7 +56,9 @@ def load_config(
     resolved_token = (
         token_flag or os.environ.get("CIRCLE_TOKEN") or file_config.get("token")
     )
-    resolved_vcs = vcs_flag or os.environ.get("CIRCLE_VCS") or file_config.get("vcs")
+    resolved_vcs = (
+        vcs_flag or os.environ.get("CIRCLE_VCS") or file_config.get("vcs") or VCS.github
+    )
     resolved_org = org_flag or os.environ.get("CIRCLE_ORG") or file_config.get("org")
     resolved_repo = (
         repo_flag or os.environ.get("CIRCLE_REPO") or file_config.get("repo")

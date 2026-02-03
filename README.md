@@ -25,9 +25,9 @@ Create `.circle-cli.toml` in your project root:
 
 ```toml
 token = "your-circleci-token"
-vcs = "gh"  # or "bb" for Bitbucket
 org = "your-organization"
 repo = "your-repository"
+# vcs = "gh"  # optional, defaults to "gh" (GitHub). Use "bb" for Bitbucket.
 ```
 
 **Important:** Add `.circle-cli.toml` to your `.gitignore` or `.git/info/exclude` to keep your token secure.
