@@ -28,13 +28,24 @@ class AppConfig(pydantic.BaseModel):
         return f"{self.vcs}/{self.org}/{self.repo}"
 
 
-def _find_config_file() -> Path | None:
-    """Search upward from cwd for .circle-cli.toml."""
+def _find_project_config_file() -> Path | None:
+    """Search upward from cwd for .circle-cli.toml, stopping at git root."""
     current = Path.cwd()
     for directory in [current, *current.parents]:
         config_path = directory / ".circle-cli.toml"
         if config_path.exists():
             return config_path
+        # Stop at git repository root
+        if (directory / ".git").exists():
+            break
+    return None
+
+
+def _get_home_config_file() -> Path | None:
+    """Get the home directory config file if it exists."""
+    home_config = Path.home() / ".circle-cli.toml"
+    if home_config.exists():
+        return home_config
     return None
 
 
@@ -45,12 +56,24 @@ def load_config(
     repo_flag: str | None,
 ) -> AppConfig:
     """
-    Load configuration from CLI args, env vars, config file, and git.
+    Load configuration from CLI args, env vars, project config, and home config.
+
+    Priority: CLI flags > env vars > project config > home config
     """
-    file_config = {}
-    if config_path := _find_config_file():
-        with open(config_path, "rb") as f:
-            file_config = tomllib.load(f)
+    # Load home config first (lowest priority)
+    home_config: dict[str, str] = {}
+    if home_config_path := _get_home_config_file():
+        with open(home_config_path, "rb") as f:
+            home_config = tomllib.load(f)
+
+    # Load project config (overrides home config)
+    project_config: dict[str, str] = {}
+    if project_config_path := _find_project_config_file():
+        with open(project_config_path, "rb") as f:
+            project_config = tomllib.load(f)
+
+    # Merge: project config overrides home config
+    file_config = {**home_config, **project_config}
 
     # Resolve each field: CLI > env > file
     resolved_token = (

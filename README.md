@@ -21,18 +21,35 @@ uvx --from git+https://github.com/Peter554/circle-cli circle
 
 ## Configuration
 
-Create `.circle-cli.toml` in your project root:
+Configuration is loaded from multiple sources with the following priority:
+
+**CLI flags > environment variables > project config > home config**
+
+### Home config (shared across projects)
+
+Create `~/.circle-cli.toml` for settings shared across all projects:
 
 ```toml
 token = "your-circleci-token"
+```
+
+### Project config
+
+Create `.circle-cli.toml` in your project root for project-specific settings:
+
+```toml
 org = "your-organization"
 repo = "your-repository"
 # vcs = "gh"  # optional, defaults to "gh" (GitHub). Use "bb" for Bitbucket.
 ```
 
+The project config is searched upward from the current directory, stopping at the git repository root.
+
 **Important:** Add `.circle-cli.toml` to your `.gitignore` or `.git/info/exclude` to keep your token secure.
 
-Configuration can also be set via environment variables (`CIRCLE_TOKEN`, `CIRCLE_VCS`, `CIRCLE_ORG`, `CIRCLE_REPO`) or CLI flags. Priority: CLI flags > environment variables > config file.
+### Environment variables and flags
+
+Configuration can also be set via environment variables: `CIRCLE_TOKEN`, `CIRCLE_ORG`, `CIRCLE_REPO`, `CIRCLE_VCS` or CLI flags.
 
 ## Commands
 
