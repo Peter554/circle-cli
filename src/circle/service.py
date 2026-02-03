@@ -7,6 +7,9 @@ from collections.abc import Set
 
 from . import api, api_types, cache_manager, config, git
 
+CURRENT_BRANCH = "@current"
+ANY_BRANCH = "@any"
+
 
 class AppError(Exception):
     pass
@@ -20,33 +23,41 @@ class AppService:
 
     async def get_latest_pipeline(
         self,
-        branch: str | None,
+        branch: str,
     ) -> api_types.Pipeline | None:
         branch = self._get_branch(branch)
 
-        pipeline = self.cache_manager.get_latest_pipeline(branch)
+        pipeline = self.cache_manager.get_latest_pipeline_for_branch(branch)
         if pipeline is None:
-            pipelines = await self.api_client.get_latest_pipelines(
+            pipelines = await self.api_client.get_latest_pipelines_for_branch(
                 self.app_config.project_slug, branch, 1
             )
             pipeline = pipelines[0] if pipelines else None
-            self.cache_manager.set_latest_pipeline(branch, pipeline)
+            self.cache_manager.set_latest_pipeline_for_branch(branch, pipeline)
 
         return pipeline
 
     async def get_latest_pipelines(
         self,
-        branch: str | None,
+        branch: str,
         n: int,
     ) -> list[tuple[api_types.Pipeline, list[api_types.Workflow]]]:
         branch = self._get_branch(branch)
 
-        pipelines = self.cache_manager.get_latest_pipelines(branch, n)
-        if pipelines is None:
-            pipelines = await self.api_client.get_latest_pipelines(
-                self.app_config.project_slug, branch, n
-            )
-            self.cache_manager.set_latest_pipelines(branch, pipelines, n)
+        if branch == ANY_BRANCH:
+            pipelines = self.cache_manager.get_my_latest_pipelines(n)
+            if pipelines is None:
+                pipelines = await self.api_client.get_my_latest_pipelines(
+                    self.app_config.project_slug, n
+                )
+                self.cache_manager.set_my_latest_pipelines(n, pipelines)
+        else:
+            pipelines = self.cache_manager.get_latest_pipelines_for_branch(branch, n)
+            if pipelines is None:
+                pipelines = await self.api_client.get_latest_pipelines_for_branch(
+                    self.app_config.project_slug, branch, n
+                )
+                self.cache_manager.set_latest_pipelines_for_branch(branch, n, pipelines)
 
         # Fetch workflows for all pipelines concurrently
         async with asyncio.TaskGroup() as tg:
@@ -184,14 +195,16 @@ class AppService:
         return job_output
 
     @staticmethod
-    def _get_branch(branch: str | None) -> str:
-        branch = branch or git.get_current_branch()
-        if branch is None:
-            raise AppError("Branch could not be determined")
+    def _get_branch(branch: str) -> str:
+        if branch == CURRENT_BRANCH:
+            current_branch = git.get_current_branch()
+            if current_branch is None:
+                raise AppError("Current branch could not be determined")
+            branch = current_branch
         return branch
 
     async def _get_latest_pipeline_for_current_branch(self) -> api_types.Pipeline:
-        branch = self._get_branch(None)
+        branch = self._get_branch(CURRENT_BRANCH)
         pipeline = await self.get_latest_pipeline(branch)
         if not pipeline:
             raise AppError(f"No pipelines found (branch '{branch}')")

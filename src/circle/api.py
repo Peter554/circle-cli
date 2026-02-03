@@ -25,7 +25,17 @@ class APIClient:
     def _semaphore(self) -> asyncio.Semaphore:
         return asyncio.Semaphore(self.max_concurrent_requests)
 
-    async def get_latest_pipelines(
+    async def get_my_latest_pipelines(
+        self, project_slug: str, limit: int
+    ) -> list[api_types.Pipeline]:
+        """
+        GET /project/{project-slug}/pipeline/mine
+        """
+        url = f"{self.base_url_v2}/project/{project_slug}/pipeline/mine"
+        items = await self._fetch_paginated(url, max_items=limit)
+        return [api_types.Pipeline.model_validate(item) for item in items]
+
+    async def get_latest_pipelines_for_branch(
         self, project_slug: str, branch: str, limit: int
     ) -> list[api_types.Pipeline]:
         """

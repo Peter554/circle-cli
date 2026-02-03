@@ -59,7 +59,9 @@ def print_pipelines(
             content = f"""[bold]ID:[/bold] {pipeline.id}
 [bold]Created:[/bold] {created}
 [bold]State:[/bold] {state}
+[bold]Branch:[/bold] {pipeline.vcs.branch if pipeline.vcs else "unknown"}
 [bold]Commit:[/bold] {commit_hash} {commit}
+[bold]Triggered by:[/bold] {pipeline.trigger.actor.login}
 [bold]Workflows:[/bold] {workflow_status}
 [bold]Link:[/bold] {_format_link(url)}"""
 

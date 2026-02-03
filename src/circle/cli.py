@@ -7,7 +7,16 @@ import cyclopts
 from rich.console import Console
 from rich.prompt import Confirm
 
-from . import api, api_types, cache, cache_manager, config, flags, output, service
+from . import (
+    api,
+    api_types,
+    cache,
+    cache_manager,
+    config,
+    flags,
+    output,
+    service,
+)
 
 app = cyclopts.App(
     name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
@@ -32,12 +41,12 @@ app.command(cache_app)
 async def pipelines_list(
     *,
     branch: Annotated[
-        str | None,
+        str,
         cyclopts.Parameter(
-            name=["--branch"],
-            help="The branch. Defaults to the currently checked out branch.",
+            name=["--branch", "-b"],
+            help="The branch. Defaults to the currently checked out branch. The special value @any can be used to show your pipelines for any branch.",
         ),
-    ] = None,
+    ] = service.CURRENT_BRANCH,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
     n: Annotated[
         int,

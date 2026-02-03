@@ -48,7 +48,7 @@ Configuration can also be set via environment variables (`CIRCLE_TOKEN`, `CIRCLE
 Show latest pipelines for a branch. This is the default command for the CLI.
 
 **Flags:**
-- `--branch` - The branch to show pipelines for (defaults to current branch)
+- `--branch`, `-b` - The branch to show pipelines for (defaults to current branch). Use `@any` to show your pipelines across all branches.
 - `--number`, `-n` - Number of pipelines to show (default: 3)
 
 ```bash
@@ -60,6 +60,10 @@ circle
 
 # Show pipelines for a specific branch
 circle pipelines --branch main
+circle pipelines -b main
+
+# Show your pipelines across all branches
+circle pipelines -b @any
 
 # Show more pipelines
 circle pipelines -n 10

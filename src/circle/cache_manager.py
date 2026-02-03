@@ -15,29 +15,39 @@ class CacheManager:
     def finished_ttl_seconds(self) -> int:
         return self.finished_ttl_days * 24 * 60 * 60
 
-    def get_latest_pipeline(self, branch: str) -> api_types.Pipeline | None:
-        cache_key = f"branch:{branch}:latest_pipeline"
+    def get_my_latest_pipelines(self, n: int) -> list[api_types.Pipeline] | None:
+        cache_key = f"latest_pipelines:mine:{n}"
         return self.cache.get(cache_key)
 
-    def set_latest_pipeline(
-        self, branch: str, pipeline: api_types.Pipeline | None
+    def set_my_latest_pipelines(
+        self, n: int, pipelines: list[api_types.Pipeline]
     ) -> None:
-        cache_key = f"branch:{branch}:latest_pipeline"
-        self.cache.set(cache_key, pipeline, ttl=self.in_progress_ttl_seconds)
-
-    def get_latest_pipelines(
-        self, branch: str, n: int
-    ) -> list[api_types.Pipeline] | None:
-        cache_key = f"branch:{branch}:latest_pipelines:{n}"
-        return self.cache.get(cache_key)
-
-    def set_latest_pipelines(
-        self, branch: str, pipelines: list[api_types.Pipeline], n: int
-    ) -> None:
-        cache_key = f"branch:{branch}:latest_pipelines:{n}"
+        cache_key = f"latest_pipelines:mine:{n}"
         self.cache.set(cache_key, pipelines, ttl=self.in_progress_ttl_seconds)
 
-        self.set_latest_pipeline(branch, pipelines[0])
+    def get_latest_pipeline_for_branch(self, branch: str) -> api_types.Pipeline | None:
+        cache_key = f"latest_pipeline:branch:{branch}"
+        return self.cache.get(cache_key)
+
+    def set_latest_pipeline_for_branch(
+        self, branch: str, pipeline: api_types.Pipeline | None
+    ) -> None:
+        cache_key = f"latest_pipeline:branch:{branch}"
+        self.cache.set(cache_key, pipeline, ttl=self.in_progress_ttl_seconds)
+
+    def get_latest_pipelines_for_branch(
+        self, branch: str, n: int
+    ) -> list[api_types.Pipeline] | None:
+        cache_key = f"latest_pipelines:branch:{branch}:{n}"
+        return self.cache.get(cache_key)
+
+    def set_latest_pipelines_for_branch(
+        self, branch: str, n: int, pipelines: list[api_types.Pipeline]
+    ) -> None:
+        cache_key = f"latest_pipelines:branch:{branch}:{n}"
+        self.cache.set(cache_key, pipelines, ttl=self.in_progress_ttl_seconds)
+
+        self.set_latest_pipeline_for_branch(branch, pipelines[0])
 
     def get_workflow(self, workflow_id: str) -> api_types.Workflow | None:
         cache_key = f"workflow:{workflow_id}"
