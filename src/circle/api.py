@@ -122,6 +122,16 @@ class APIClient:
             data = response.json()
             return [api_types.JobOutputMessage.model_validate(item) for item in data]
 
+    async def get_job_tests(
+        self, project_slug: str, job_number: int
+    ) -> list[api_types.JobTestMetadata]:
+        """
+        GET /project/{project-slug}/{job-number}/tests
+        """
+        url = f"{self.base_url_v2}/project/{project_slug}/{job_number}/tests"
+        items = await self._fetch_paginated(url, max_items=None)
+        return [api_types.JobTestMetadata.model_validate(item) for item in items]
+
     def _headers(self) -> dict[str, str]:
         return {"Circle-Token": self.token}
 

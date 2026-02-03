@@ -164,24 +164,24 @@ class AppService:
         return JobDetailsWithSteps(details, steps_by_action_index)
 
     async def get_job_output(
-        self, job_number: int, step: int, action_index: int | None
+        self, job_number: int, step: int, parallel_index: int | None
     ) -> api_types.JobOutput:
         """Get job output."""
-        if action_index is None:
+        if parallel_index is None:
             job_details = await self.get_job_details(job_number)
             if job_details.details.parallelism > 1:
-                raise AppError("action_index is required for parallel jobs")
+                raise AppError("parallel index is required for parallel jobs")
             else:
-                action_index = 0
+                parallel_index = 0
 
-        job_output = self.cache_manager.get_job_output(job_number, step, action_index)
+        job_output = self.cache_manager.get_job_output(job_number, step, parallel_index)
         if job_output is None:
             # !Note: We can't cache the V1 job details call here since the presigned URL expires
             job_details = await self.api_client.get_v1_job_details(
                 self.app_config.project_slug, job_number
             )
             actions = [
-                a for a in job_details.steps[step].actions if a.index == action_index
+                a for a in job_details.steps[step].actions if a.index == parallel_index
             ]
             assert len(actions) == 1
             action = actions[0]
@@ -190,9 +190,32 @@ class AppService:
                 raise AppError("Output URL not found")
             job_output = await self.api_client.get_job_output(output_url)
             self.cache_manager.set_job_output(
-                job_number, job_details.lifecycle, step, action_index, job_output
+                job_number, job_details.lifecycle, step, parallel_index, job_output
             )
         return job_output
+
+    async def get_job_tests(
+        self,
+        job_number: int,
+        statuses: set[api_types.JobTestResult] | None = None,
+        file_suffix: str | None = None,
+    ) -> list[api_types.JobTestMetadata]:
+        """Get test metadata for a job, with optional filtering."""
+        tests = self.cache_manager.get_job_tests(job_number)
+        if tests is None:
+            job_details = await self._get_job_details(job_number)
+            tests = await self.api_client.get_job_tests(
+                self.app_config.project_slug, job_number
+            )
+            self.cache_manager.set_job_tests(job_number, job_details.status, tests)
+
+        if statuses is not None:
+            tests = [t for t in tests if t.result in statuses]
+
+        if file_suffix is not None:
+            tests = [t for t in tests if t.file.endswith(file_suffix)]
+
+        return tests
 
     @staticmethod
     def _get_branch(branch: str) -> str:

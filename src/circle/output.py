@@ -57,6 +57,7 @@ def print_pipelines(
             )
 
             content = f"""[bold]ID:[/bold] {pipeline.id}
+[bold]Number:[/bold] {pipeline.number}
 [bold]Created:[/bold] {created}
 [bold]State:[/bold] {state}
 [bold]Branch:[/bold] {pipeline.vcs.branch if pipeline.vcs else "unknown"}
@@ -276,6 +277,73 @@ def print_job_details(
         console.print()
 
 
+def print_job_tests(
+    tests: list[api_types.JobTestMetadata],
+    output_format: flags.OutputFormat,
+    show_messages: bool = False,
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        data = [t.model_dump(mode="json") for t in tests]
+        console.print(json.dumps(data, indent=2))
+    else:
+        if not tests:
+            console.print("No tests found")
+            return
+
+        # Group by file, then by classname
+        by_file: dict[str, dict[str, list[api_types.JobTestMetadata]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        for test in tests:
+            by_file[test.file][test.classname].append(test)
+
+        # Create a panel for each file
+        for file in sorted(by_file.keys()):
+            classnames = by_file[file]
+            renderables: list[Table | Text] = [
+                Text(f"File: {file}", style="bold underline")
+            ]
+            failed_tests: list[api_types.JobTestMetadata] = []
+
+            for classname in sorted(classnames.keys()):
+                class_tests = sorted(classnames[classname], key=lambda t: t.name)
+
+                failed_tests.extend(
+                    t
+                    for t in class_tests
+                    if t.result == api_types.JobTestResult.failure
+                )
+
+                # Add classname header
+                renderables.append(Text(f"\n{classname}", style="bold"))
+
+                # Build table for this classname
+                table = Table(show_header=True, header_style="bold")
+                table.add_column("Result")
+                table.add_column("Name", overflow="ellipsis", max_width=80)
+                table.add_column("Duration")
+
+                for test in class_tests:
+                    result = _format_test_result(test.result)
+                    duration = f"{test.run_time:.2f}s"
+                    table.add_row(result, test.name, duration)
+
+                renderables.append(table)
+
+            # Show failure messages at the bottom of the panel
+            if show_messages and failed_tests:
+                renderables.append(Text("\nFailure Messages:", style="bold red"))
+                for test in failed_tests:
+                    renderables.append(Text(f"\n{test.name}", style="bold"))
+                    if test.message:
+                        renderables.append(Text(test.message))
+                    else:
+                        renderables.append(Text("(no message)", style="dim"))
+
+            panel = Panel(Group(*renderables))
+            console.print(panel)
+
+
 def print_job_output(
     job_output: api_types.JobOutput,
     output_format: flags.OutputFormat,
@@ -300,35 +368,32 @@ def print_job_output(
         # Sort by time
         sorted_output = sorted(job_output, key=lambda m: m.time)
 
-        for idx, msg in enumerate(sorted_output):
-            # Build heading with type and truncation status
-            heading_text = Text()
-            heading_text.append(f"# Message: {msg.type}", style="bold")
-            if msg.truncated:
-                heading_text.append(" (truncated)", style="yellow")
-            heading_text.stylize("underline")
-
+        for msg in sorted_output:
             # Normalize line endings (remove extra carriage returns)
             normalized_message = msg.message.replace("\r\r\n", "\n").replace(
                 "\r\n", "\n"
             )
 
-            # Print heading
-            if idx > 0:
-                console.print("\n", end="")
-            console.print(heading_text)
-            if not normalized_message.startswith("\n"):
-                console.print("\n", end="")
-
             # Try to extract pytest summary if requested
+            is_summary = False
             if try_extract_summary:
                 summary = _try_extract_summary(normalized_message)
                 if summary:
                     normalized_message = summary
+                    is_summary = True
+
+            # Build title with type and status indicators
+            title = f"[bold]{msg.type}[/bold]"
+            if msg.truncated:
+                title += " [yellow](truncated)[/yellow]"
+            if is_summary:
+                title += " [yellow](summary)[/yellow]"
 
             # Render ANSI content
-            content = Text.from_ansi(normalized_message)
-            console.print(content)
+            content = Text.from_ansi(normalized_message.strip())
+
+            panel = Panel(content, title=title, title_align="left")
+            console.print(panel)
 
 
 def _try_extract_summary(message: str) -> str | None:
@@ -602,3 +667,14 @@ def _build_job_url(job: api_types.Job) -> str:
     """Build CircleCI job URL."""
     vcs_provider, org, repo = _parse_project_slug(job.project_slug)
     return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/jobs/{job.job_number}"
+
+
+def _format_test_result(result: api_types.JobTestResult) -> str:
+    """Format test result with color."""
+    if result == api_types.JobTestResult.success:
+        return f"[green]{result}[/green]"
+    elif result == api_types.JobTestResult.failure:
+        return f"[red]{result}[/red]"
+    elif result == api_types.JobTestResult.skipped:
+        return f"[yellow]{result}[/yellow]"
+    return str(result)

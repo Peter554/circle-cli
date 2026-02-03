@@ -163,6 +163,24 @@ class CacheManager:
         )
         self.cache.set(cache_key, job_output, ttl=ttl)
 
+    def get_job_tests(self, job_number: int) -> list[api_types.JobTestMetadata] | None:
+        cache_key = f"job_tests:{job_number}"
+        return self.cache.get(cache_key)
+
+    def set_job_tests(
+        self,
+        job_number: int,
+        job_status: api_types.JobStatus,
+        tests: list[api_types.JobTestMetadata],
+    ) -> None:
+        cache_key = f"job_tests:{job_number}"
+        ttl = (
+            self.finished_ttl_seconds
+            if _job_is_finished(job_status)
+            else self.in_progress_ttl_seconds
+        )
+        self.cache.set(cache_key, tests, ttl=ttl)
+
 
 def _workflow_is_finished(workflow_status: api_types.WorkflowStatus) -> bool:
     return workflow_status in {

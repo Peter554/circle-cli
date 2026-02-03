@@ -270,3 +270,19 @@ class JobOutputMessage(BaseModel):
 
 
 type JobOutput = list[JobOutputMessage]
+
+
+class JobTestResult(enum.StrEnum):
+    success = "success"
+    failure = "failure"
+    skipped = "skipped"
+
+
+class JobTestMetadata(BaseModel):
+    name: str
+    classname: str
+    file: str
+    result: JobTestResult
+    run_time: float
+    message: str | None
+    source: str

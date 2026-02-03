@@ -165,7 +165,7 @@ async def job_output(
             help="The step number",
         ),
     ],
-    action_index: Annotated[
+    parallel_index: Annotated[
         int | None,
         cyclopts.Parameter(
             name=["--parallel-index"],
@@ -185,8 +185,60 @@ async def job_output(
     """Show job output"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    job_output = await app_service.get_job_output(job_number, step, action_index)
+    job_output = await app_service.get_job_output(job_number, step, parallel_index)
     output.print_job_output(job_output, common_flags.output_format, try_extract_summary)
+
+
+@jobs_app.command(name="tests")
+async def job_tests(
+    job_number: Annotated[
+        int,
+        cyclopts.Parameter(
+            help="The job number",
+        ),
+    ],
+    *,
+    status: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            name=["--status", "-s"],
+            help="Filter tests by result status (success, failure/failed, skipped). Can be specified multiple times.",
+            negative=(),
+        ),
+    ] = None,
+    file: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            name=["--file"],
+            help="Filter tests by file path suffix.",
+        ),
+    ] = None,
+    show_messages: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name=["--show-messages", "-m"],
+            help="Show failure messages.",
+            negative=(),
+        ),
+    ] = False,
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
+) -> None:
+    """Show test metadata for a job"""
+    _setup_logging(common_flags.log_level)
+    app_service = _get_app_service(common_flags)
+    statuses = _parse_test_statuses(status) if status else None
+    tests = await app_service.get_job_tests(job_number, statuses, file)
+    output.print_job_tests(tests, common_flags.output_format, show_messages)
+
+
+def _parse_test_statuses(statuses: list[str]) -> set[api_types.JobTestResult]:
+    result = set()
+    for s in statuses:
+        if s == "failed":
+            result.add(api_types.JobTestResult.failure)
+        else:
+            result.add(api_types.JobTestResult(s))
+    return result
 
 
 @cache_app.command(name="size")

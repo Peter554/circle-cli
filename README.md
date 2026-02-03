@@ -137,6 +137,29 @@ circle jobs details 12345
 circle jobs details 12345 --step-status failed
 ```
 
+#### tests
+
+Show test metadata for a job. Useful for identifying which tests failed before viewing full output.
+
+**Flags:**
+- `--status`, `-s` - Filter by test result (success, failure/failed, skipped). Can be specified multiple times.
+- `--file` - Filter tests by file path suffix
+- `--show-messages`, `-m` - Show failure messages
+
+```bash
+# Show all tests for a job
+circle jobs tests 12345
+
+# Show only failed tests
+circle jobs tests 12345 --status failed
+
+# Show failed tests with failure messages
+circle jobs tests 12345 --status failed --show-messages
+
+# Filter by file
+circle jobs tests 12345 --file test_auth.py
+```
+
 #### output
 
 Show the output of a job step.
