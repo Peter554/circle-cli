@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 import humanize
 from rich.console import Console, Group
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -15,17 +16,13 @@ from . import api_types, flags, service, summary
 console = Console()
 
 
-def print(o: object) -> None:
-    console.print(o)
-
-
 def print_pipelines(
     pipelines: list[service.PipelineWithWorkflows],
     output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
         data = [p.model_dump(mode="json") for p in pipelines]
-        console.print(json.dumps(data, indent=2))
+        print(json.dumps(data, indent=2))
     else:
         if not pipelines:
             console.print("No pipelines found")
@@ -45,17 +42,22 @@ def print_pipelines(
 
             # Build workflows status line
             workflow_status = ", ".join(
-                f"{w.name}: {_format_workflow_status(w.status)}"
+                f"{escape(w.name)}: {_format_workflow_status(w.status)}"
                 for w in sorted_workflows
             )
 
+            branch = (
+                escape(pipeline.vcs.branch)
+                if pipeline.vcs and pipeline.vcs.branch
+                else "unknown"
+            )
             content = f"""[bold]ID:[/bold] {pipeline.id}
 [bold]Number:[/bold] {pipeline.number}
 [bold]Created:[/bold] {created}
 [bold]State:[/bold] {state}
-[bold]Branch:[/bold] {pipeline.vcs.branch if pipeline.vcs else "unknown"}
-[bold]Commit:[/bold] {commit_hash} {commit}
-[bold]Triggered by:[/bold] {pipeline.trigger.actor.login}
+[bold]Branch:[/bold] {branch}
+[bold]Commit:[/bold] {commit_hash} {escape(commit)}
+[bold]Triggered by:[/bold] {escape(pipeline.trigger.actor.login)}
 [bold]Workflows:[/bold] {workflow_status}
 [bold]Link:[/bold] {_format_link(url)}"""
 
@@ -72,7 +74,7 @@ def print_workflows(
 ) -> None:
     if output_format == flags.OutputFormat.json:
         data = [w.model_dump(mode="json") for w in workflows]
-        console.print(json.dumps(data, indent=2))
+        print(json.dumps(data, indent=2))
     else:
         if not workflows:
             console.print("No workflows found")
@@ -96,7 +98,7 @@ def print_workflows(
 
                 content = f"""
 [bold]ID:[/bold] {workflow.id}
-[bold]Name:[/bold] {workflow.name}
+[bold]Name:[/bold] {escape(workflow.name)}
 [bold]Created:[/bold] {created}
 [bold]Status:[/bold] {status}
 [bold]Duration:[/bold] {duration}
@@ -104,7 +106,7 @@ def print_workflows(
 
                 panel = Panel(
                     content,
-                    title=f"[bold]{workflow.name} ({workflow.id})[/bold]",
+                    title=f"[bold]{escape(workflow.name)} ({workflow.id})[/bold]",
                     border_style=_get_workflow_border_style(workflow.status),
                 )
                 console.print(panel)
@@ -116,7 +118,7 @@ def print_jobs(
 ) -> None:
     if output_format == flags.OutputFormat.json:
         data = [j.model_dump(mode="json") for j in jobs]
-        console.print(json.dumps(data, indent=2))
+        print(json.dumps(data, indent=2))
     else:
         if not jobs:
             console.print("No jobs found")
@@ -125,7 +127,9 @@ def print_jobs(
         # Display jobs for each workflow
         for wj in sorted(jobs, key=lambda x: x.workflow.created_at):
             workflow, job_list = wj.workflow, wj.jobs
-            console.print(f"\n[bold]Workflow:[/bold] {workflow.name} ({workflow.id})\n")
+            console.print(
+                f"\n[bold]Workflow:[/bold] {escape(workflow.name)} ({workflow.id})\n"
+            )
 
             if not job_list:
                 console.print("No matching jobs")
@@ -161,7 +165,7 @@ def print_jobs(
 
                 table.add_row(
                     str(job.job_number or ""),
-                    job.name,
+                    escape(job.name),
                     status,
                     started,
                     duration,
@@ -177,7 +181,7 @@ def print_job_details(
     output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        console.print(json.dumps(job_details.model_dump(mode="json"), indent=2))
+        print(json.dumps(job_details.model_dump(mode="json"), indent=2))
     else:
         details = job_details.details
 
@@ -188,7 +192,7 @@ def print_job_details(
         url = details.web_url
 
         summary = f"""[bold]Number:[/bold] {details.number}
-[bold]Name:[/bold] {details.name}
+[bold]Name:[/bold] {escape(details.name)}
 [bold]Status:[/bold] {status}
 [bold]Started:[/bold] {started}
 [bold]Duration:[/bold] {duration}
@@ -233,7 +237,7 @@ def print_job_details(
 
                 table.add_row(
                     str(step_action.step_index),
-                    step_action.step.name,
+                    escape(step_action.step.name),
                     step_status,
                     step_duration,
                 )
@@ -258,7 +262,7 @@ def print_job_tests(
 ) -> None:
     if output_format == flags.OutputFormat.json:
         data = [t.model_dump(mode="json") for t in tests]
-        console.print(json.dumps(data, indent=2))
+        print(json.dumps(data, indent=2))
     else:
         if not tests:
             console.print("No tests found")
@@ -300,7 +304,7 @@ def print_job_tests(
                 for test in class_tests:
                     result = _format_test_result(test.result)
                     duration = f"{test.run_time:.2f}s"
-                    table.add_row(result, test.name, duration)
+                    table.add_row(result, escape(test.name), duration)
 
                 renderables.append(table)
 
@@ -333,7 +337,7 @@ def print_job_output(
             }
             for msg in job_output
         ]
-        console.print(json.dumps(data, indent=2))
+        print(json.dumps(data, indent=2))
     else:
         if not job_output:
             console.print("No output found")
@@ -357,7 +361,7 @@ def print_job_output(
                     is_summary = True
 
             # Build title with type and status indicators
-            title = f"[bold]{msg.type}[/bold]"
+            title = f"[bold]{escape(msg.type)}[/bold]"
             if msg.truncated:
                 title += " [yellow](truncated)[/yellow]"
             if is_summary:
