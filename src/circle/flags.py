@@ -5,9 +5,9 @@ from typing import Annotated
 import cyclopts
 
 
-class OutputFormat(enum.StrEnum):
-    pretty = "pretty"
-    json = "json"
+class VCS(enum.StrEnum):
+    github = "gh"
+    bitbucket = "bb"
 
 
 @cyclopts.Parameter(name="*")
@@ -16,7 +16,7 @@ class ProjectSlugFlags:
     """Flags for identifying the project (vcs, org, repo)."""
 
     vcs: Annotated[
-        str | None,
+        VCS | None,
         cyclopts.Parameter(
             name=["--vcs"],
             help="Version control system. Set via the CIRCLE_VCS environment variable, the .circle-cli.toml config file or the --vcs flag",
@@ -36,13 +36,22 @@ class ProjectSlugFlags:
             help="The repository. Set via the CIRCLE_REPO environment variable, the .circle-cli.toml config file or the --repo flag",
         ),
     ] = None
-    log_level: Annotated[
-        str,
-        cyclopts.Parameter(
-            name=["--log-level"],
-            help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
-        ),
-    ] = "WARNING"
+
+
+LogLevelFlag = Annotated[
+    str,
+    cyclopts.Parameter(
+        name=["--log-level"],
+        help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    ),
+]
+
+DEFAULT_LOG_LEVEL = "WARNING"
+
+
+class OutputFormat(enum.StrEnum):
+    pretty = "pretty"
+    json = "json"
 
 
 @cyclopts.Parameter(name="*")
@@ -72,3 +81,4 @@ class CommonFlags(ProjectSlugFlags):
             help="Output format",
         ),
     ] = OutputFormat.pretty
+    log_level: LogLevelFlag = DEFAULT_LOG_LEVEL

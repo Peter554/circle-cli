@@ -7,7 +7,7 @@ from collections.abc import Set
 
 import pydantic
 
-from . import api, api_types, cache_manager, config, git
+from . import api, api_types, cache_manager, git
 
 CURRENT_BRANCH = "@current"
 ANY_BRANCH = "@any"
@@ -19,7 +19,7 @@ class AppError(Exception):
 
 @dataclasses.dataclass(frozen=True)
 class AppService:
-    app_config: config.AppConfig
+    project_slug: str
     api_client: api.APIClient
     cache_manager: cache_manager.CacheManager
 
@@ -32,7 +32,7 @@ class AppService:
         pipeline = self.cache_manager.get_latest_pipeline_for_branch(branch)
         if pipeline is None:
             pipelines = await self.api_client.get_latest_pipelines_for_branch(
-                self.app_config.project_slug, branch, 1
+                self.project_slug, branch, 1
             )
             pipeline = pipelines[0] if pipelines else None
             self.cache_manager.set_latest_pipeline_for_branch(branch, pipeline)
@@ -50,14 +50,14 @@ class AppService:
             pipelines = self.cache_manager.get_my_latest_pipelines(n)
             if pipelines is None:
                 pipelines = await self.api_client.get_my_latest_pipelines(
-                    self.app_config.project_slug, n
+                    self.project_slug, n
                 )
                 self.cache_manager.set_my_latest_pipelines(n, pipelines)
         else:
             pipelines = self.cache_manager.get_latest_pipelines_for_branch(branch, n)
             if pipelines is None:
                 pipelines = await self.api_client.get_latest_pipelines_for_branch(
-                    self.app_config.project_slug, branch, n
+                    self.project_slug, branch, n
                 )
                 self.cache_manager.set_latest_pipelines_for_branch(branch, n, pipelines)
 
@@ -188,7 +188,7 @@ class AppService:
         if job_output is None:
             # !Note: We can't cache the V1 job details call here since the presigned URL expires
             job_details = await self.api_client.get_v1_job_details(
-                self.app_config.project_slug, job_number
+                self.project_slug, job_number
             )
             actions = [
                 a for a in job_details.steps[step].actions if a.index == parallel_index
@@ -214,9 +214,7 @@ class AppService:
         tests = self.cache_manager.get_job_tests(job_number)
         if tests is None:
             job_details = await self._get_job_details(job_number)
-            tests = await self.api_client.get_job_tests(
-                self.app_config.project_slug, job_number
-            )
+            tests = await self.api_client.get_job_tests(self.project_slug, job_number)
             self.cache_manager.set_job_tests(job_number, job_details.status, tests)
 
         if statuses is not None:
@@ -263,7 +261,7 @@ class AppService:
         job_details = self.cache_manager.get_job_details(job_number)
         if job_details is None:
             job_details = await self.api_client.get_job_details(
-                self.app_config.project_slug, job_number
+                self.project_slug, job_number
             )
             self.cache_manager.set_job_details(job_number, job_details)
         return job_details
@@ -272,7 +270,7 @@ class AppService:
         v1_job_details = self.cache_manager.get_v1_job_details(job_number)
         if v1_job_details is None:
             v1_job_details = await self.api_client.get_v1_job_details(
-                self.app_config.project_slug, job_number
+                self.project_slug, job_number
             )
             self.cache_manager.set_v1_job_details(job_number, v1_job_details)
         return v1_job_details

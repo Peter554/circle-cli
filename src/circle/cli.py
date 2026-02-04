@@ -253,13 +253,12 @@ def _parse_test_statuses(statuses: list[str]) -> set[api_types.JobTestResult]:
 def cache_size(
     *,
     project_slug_flags: flags.ProjectSlugFlags = flags.ProjectSlugFlags(),
+    log_level: flags.LogLevelFlag = flags.DEFAULT_LOG_LEVEL,
 ) -> None:
     """Show total cache size"""
-    _setup_logging(project_slug_flags.log_level)
-    app_config = config.load_config(
-        "", project_slug_flags.vcs, project_slug_flags.org, project_slug_flags.repo
-    )
-    cache_ = cache.DiskcacheCache(app_config.project_slug)
+    _setup_logging(log_level)
+    project_slug = config.get_project_slug(project_slug_flags).project_slug
+    cache_ = cache.DiskcacheCache(project_slug)
     size_bytes = cache_.size()
     console = Console()
     if size_bytes < 1024:
@@ -274,13 +273,12 @@ def cache_size(
 def cache_prune(
     *,
     project_slug_flags: flags.ProjectSlugFlags = flags.ProjectSlugFlags(),
+    log_level: flags.LogLevelFlag = flags.DEFAULT_LOG_LEVEL,
 ) -> None:
     """Proactively remove expired items (expired items are also cleared on access)"""
-    _setup_logging(project_slug_flags.log_level)
-    app_config = config.load_config(
-        "", project_slug_flags.vcs, project_slug_flags.org, project_slug_flags.repo
-    )
-    cache_ = cache.DiskcacheCache(app_config.project_slug)
+    _setup_logging(log_level)
+    project_slug = config.get_project_slug(project_slug_flags).project_slug
+    cache_ = cache.DiskcacheCache(project_slug)
     cache_.prune()
     Console().print("Pruned expired cache entries")
 
@@ -289,13 +287,12 @@ def cache_prune(
 def cache_clear(
     *,
     project_slug_flags: flags.ProjectSlugFlags = flags.ProjectSlugFlags(),
+    log_level: flags.LogLevelFlag = flags.DEFAULT_LOG_LEVEL,
 ) -> None:
     """Clear all items from the cache"""
-    _setup_logging(project_slug_flags.log_level)
-    app_config = config.load_config(
-        "", project_slug_flags.vcs, project_slug_flags.org, project_slug_flags.repo
-    )
-    cache_ = cache.DiskcacheCache(app_config.project_slug)
+    _setup_logging(log_level)
+    project_slug = config.get_project_slug(project_slug_flags).project_slug
+    cache_ = cache.DiskcacheCache(project_slug)
     cache_.clear()
     Console().print("Cache cleared")
 
@@ -345,16 +342,15 @@ def _setup_logging(log_level: str) -> None:
 
 
 def _get_app_service(common_flags: flags.CommonFlags) -> service.AppService:
-    app_config = config.load_config(
-        common_flags.token, common_flags.vcs, common_flags.org, common_flags.repo
-    )
-    api_client = api.APIClient(app_config.token)
+    token = config.get_token(common_flags.token)
+    project_slug = config.get_project_slug(common_flags).project_slug
+    api_client = api.APIClient(token)
     if common_flags.no_cache:
         cache_ = cache.NullCache()
     else:
-        cache_ = cache.DiskcacheCache(app_config.project_slug)
+        cache_ = cache.DiskcacheCache(project_slug)
     cache_manager_ = cache_manager.CacheManager(cache_)
-    return service.AppService(app_config, api_client, cache_manager_)
+    return service.AppService(project_slug, api_client, cache_manager_)
 
 
 def main() -> None:
