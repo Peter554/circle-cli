@@ -6,6 +6,7 @@ from typing import Annotated
 import cyclopts
 from rich.console import Console
 from rich.prompt import Confirm
+from rich.traceback import install as install_rich_traceback
 
 from . import (
     api,
@@ -18,8 +19,13 @@ from . import (
     service,
 )
 
+error_console = Console(stderr=True)
+install_rich_traceback(console=error_console)
+
 app = cyclopts.App(
-    name="circle", help="CircleCI CLI for viewing pipelines, workflows and jobs"
+    name="circle",
+    help="CircleCI CLI for viewing pipelines, workflows and jobs",
+    error_console=error_console,
 )
 
 pipelines_app = cyclopts.App(name="pipelines")
