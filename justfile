@@ -36,7 +36,14 @@ tag tag message="":
         echo "Error: tag '{{ tag }}' doesn't match pyproject.toml version 'v$VERSION'"
         exit 1
     fi
+
+    if [[ -n "$(git status -s)" ]]; then
+        echo "Error: There are uncommitted changes"
+        exit 1
+    fi
+
     MSG="{{ message }}"
     MSG="${MSG:-Tag {{ tag }}}"
+
     git tag -a "{{ tag }}" -m "$MSG"
     echo "Tagged {{ tag }}"
