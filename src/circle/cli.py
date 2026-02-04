@@ -28,6 +28,8 @@ app = cyclopts.App(
     error_console=error_console,
 )
 
+app.register_install_completion_command()
+
 pipelines_app = cyclopts.App(name="pipelines")
 app.command(pipelines_app, alias=["pipeline", "p"])
 
