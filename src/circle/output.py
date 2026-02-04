@@ -20,17 +20,11 @@ def print(o: object) -> None:
 
 
 def print_pipelines(
-    pipelines: list[tuple[api_types.Pipeline, list[api_types.Workflow]]],
+    pipelines: list[service.PipelineWithWorkflows],
     output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        data = [
-            {
-                "pipeline": pipeline.model_dump(mode="json"),
-                "workflows": [w.model_dump(mode="json") for w in workflows],
-            }
-            for pipeline, workflows in pipelines
-        ]
+        data = [p.model_dump(mode="json") for p in pipelines]
         console.print(json.dumps(data, indent=2))
     else:
         if not pipelines:
@@ -38,9 +32,8 @@ def print_pipelines(
             return
 
         # Create panel for each pipeline
-        for pipeline, workflows in sorted(
-            pipelines, key=lambda x: x[0].created_at, reverse=True
-        ):
+        for p in sorted(pipelines, key=lambda x: x.pipeline.created_at, reverse=True):
+            pipeline, workflows = p.pipeline, p.workflows
             state = _format_pipeline_state(pipeline.state)
             commit = _get_commit_subject(pipeline)
             created = _format_relative_time(pipeline.created_at)
@@ -118,17 +111,11 @@ def print_workflows(
 
 
 def print_jobs(
-    jobs: list[tuple[api_types.Workflow, list[api_types.Job]]],
+    jobs: list[service.WorkflowWithJobs],
     output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        data = [
-            {
-                "workflow": workflow.model_dump(mode="json"),
-                "jobs": [job.model_dump(mode="json") for job in job_list],
-            }
-            for workflow, job_list in jobs
-        ]
+        data = [j.model_dump(mode="json") for j in jobs]
         console.print(json.dumps(data, indent=2))
     else:
         if not jobs:
@@ -136,7 +123,8 @@ def print_jobs(
             return
 
         # Display jobs for each workflow
-        for workflow, job_list in sorted(jobs, key=lambda x: x[0].created_at):
+        for wj in sorted(jobs, key=lambda x: x.workflow.created_at):
+            workflow, job_list = wj.workflow, wj.jobs
             console.print(f"\n[bold]Workflow:[/bold] {workflow.name} ({workflow.id})\n")
 
             if not job_list:
@@ -189,21 +177,7 @@ def print_job_details(
     output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        data = {
-            "details": job_details.details.model_dump(mode="json"),
-            "steps_by_action_index": {
-                action_index: [
-                    {
-                        "step_index": sa.step_index,
-                        "step": sa.step.model_dump(mode="json"),
-                        "action": sa.action.model_dump(mode="json"),
-                    }
-                    for sa in step_actions
-                ]
-                for action_index, step_actions in job_details.steps_by_action_index.items()
-            },
-        }
-        console.print(json.dumps(data, indent=2))
+        console.print(json.dumps(job_details.model_dump(mode="json"), indent=2))
     else:
         details = job_details.details
 

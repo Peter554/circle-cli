@@ -5,6 +5,8 @@ import dataclasses
 from collections import defaultdict
 from collections.abc import Set
 
+import pydantic
+
 from . import api, api_types, cache_manager, config, git
 
 CURRENT_BRANCH = "@current"
@@ -41,7 +43,7 @@ class AppService:
         self,
         branch: str,
         n: int,
-    ) -> list[tuple[api_types.Pipeline, list[api_types.Workflow]]]:
+    ) -> list[PipelineWithWorkflows]:
         branch = self._get_branch(branch)
 
         if branch == ANY_BRANCH:
@@ -68,7 +70,10 @@ class AppService:
         workflows_lists = [task.result() for task in tasks]
 
         # Pair pipelines with their workflows
-        return list(zip(pipelines, workflows_lists))
+        return [
+            PipelineWithWorkflows(pipeline=pipeline, workflows=workflows)
+            for pipeline, workflows in zip(pipelines, workflows_lists)
+        ]
 
     async def get_pipeline_workflows(
         self,
@@ -85,12 +90,12 @@ class AppService:
 
         return workflows
 
-    async def get_jobs(
+    async def get_workflow_jobs(
         self,
         pipeline_id: str | None,
         workflow_ids: list[str] | None,
         statuses: Set[api_types.JobStatus] | None = None,
-    ) -> list[tuple[api_types.Workflow, list[api_types.Job]]]:
+    ) -> list[WorkflowWithJobs]:
         # If workflow IDs are provided use those. If pipeline ID was provided validate it against the workflows.
         # If no workflow IDs are, use workflows for the pipeline ID or latest pipeline for the current branch.
 
@@ -129,7 +134,10 @@ class AppService:
             ]
 
         # Pair workflows with their jobs
-        return list(zip(workflows, jobs_lists))
+        return [
+            WorkflowWithJobs(workflow=workflow, jobs=jobs)
+            for workflow, jobs in zip(workflows, jobs_lists)
+        ]
 
     async def get_job_details(
         self, job_number: int, step_statuses: set[str] | None = None
@@ -147,7 +155,7 @@ class AppService:
         for step_idx, step in enumerate(v1_details.steps):
             for action in step.actions:
                 steps_by_action_index[action.index].append(
-                    StepAction(step_idx, step, action)
+                    StepAction(step_index=step_idx, step=step, action=action)
                 )
 
         # Filter by status if specified
@@ -161,7 +169,9 @@ class AppService:
                 for action_index, step_actions in steps_by_action_index.items()
             }
 
-        return JobDetailsWithSteps(details, steps_by_action_index)
+        return JobDetailsWithSteps(
+            details=details, steps_by_action_index=steps_by_action_index
+        )
 
     async def get_job_output(
         self, job_number: int, step: int, parallel_index: int | None
@@ -268,14 +278,26 @@ class AppService:
         return v1_job_details
 
 
-@dataclasses.dataclass(frozen=True)
-class JobDetailsWithSteps:
+class _BaseModel(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(frozen=True)
+
+
+class PipelineWithWorkflows(_BaseModel):
+    pipeline: api_types.Pipeline
+    workflows: list[api_types.Workflow]
+
+
+class WorkflowWithJobs(_BaseModel):
+    workflow: api_types.Workflow
+    jobs: list[api_types.Job]
+
+
+class JobDetailsWithSteps(_BaseModel):
     details: api_types.JobDetails
     steps_by_action_index: dict[int, list[StepAction]]
 
 
-@dataclasses.dataclass(frozen=True)
-class StepAction:
+class StepAction(_BaseModel):
     step_index: int
     step: api_types.V1JobStep
     action: api_types.V1JobAction

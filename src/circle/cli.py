@@ -122,7 +122,7 @@ async def jobs_list(
     """Show jobs for workflows"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    jobs = await app_service.get_jobs(
+    jobs = await app_service.get_workflow_jobs(
         pipeline, workflow, set(status) if status else None
     )
     output.print_jobs(jobs, common_flags.output_format)

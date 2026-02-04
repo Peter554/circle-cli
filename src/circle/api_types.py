@@ -6,11 +6,11 @@ import enum
 import pydantic
 
 
-class BaseModel(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(extra="ignore")
+class _BaseModel(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(extra="ignore", frozen=True)
 
 
-class Pipeline(BaseModel):
+class Pipeline(_BaseModel):
     id: str
     number: int
     project_slug: str
@@ -38,18 +38,18 @@ class PipelineTriggerType(enum.StrEnum):
     webhook = "webhook"
 
 
-class PipelineTrigger(BaseModel):
+class PipelineTrigger(_BaseModel):
     type: PipelineTriggerType
     received_at: datetime.datetime
     actor: Actor
 
 
-class Actor(BaseModel):
+class Actor(_BaseModel):
     login: str
     avatar_url: str | None
 
 
-class VCS(BaseModel):
+class VCS(_BaseModel):
     provider_name: str
     origin_repository_url: str
     target_repository_url: str
@@ -61,12 +61,12 @@ class VCS(BaseModel):
     review_url: str | None = None
 
 
-class VCSCommit(BaseModel):
+class VCSCommit(_BaseModel):
     subject: str | None
     body: str | None
 
 
-class PipelineError(BaseModel):
+class PipelineError(_BaseModel):
     type: PipelineErrorType
     message: str
 
@@ -82,7 +82,7 @@ class PipelineErrorType(enum.StrEnum):
     plan = "plan"
 
 
-class Workflow(BaseModel):
+class Workflow(_BaseModel):
     id: str
     name: str
     status: WorkflowStatus
@@ -111,7 +111,7 @@ class WorkflowStatus(enum.StrEnum):
     unauthorized = "unauthorized"
 
 
-class Job(BaseModel):
+class Job(_BaseModel):
     id: str
     name: str
     dependencies: list[str]
@@ -149,7 +149,7 @@ class JobType(enum.StrEnum):
     approval = "approval"
 
 
-class JobDetails(BaseModel):
+class JobDetails(_BaseModel):
     web_url: str
     project: JobProject
     parallel_runs: list[ParallelRun]
@@ -170,47 +170,47 @@ class JobDetails(BaseModel):
     stopped_at: datetime.datetime | None
 
 
-class JobProject(BaseModel):
+class JobProject(_BaseModel):
     id: str
     slug: str
     name: str
     external_url: str
 
 
-class ParallelRun(BaseModel):
+class ParallelRun(_BaseModel):
     index: int
     status: str
 
 
-class LatestWorkflow(BaseModel):
+class LatestWorkflow(_BaseModel):
     id: str
     name: str
 
 
-class Executor(BaseModel):
+class Executor(_BaseModel):
     resource_class: str
     type: str | None = None
 
 
-class JobPipeline(BaseModel):
+class JobPipeline(_BaseModel):
     id: str
 
 
-class JobMessage(BaseModel):
+class JobMessage(_BaseModel):
     type: str
     message: str
     reason: str | None = None
 
 
-class JobContext(BaseModel):
+class JobContext(_BaseModel):
     name: str
 
 
-class JobOrganization(BaseModel):
+class JobOrganization(_BaseModel):
     name: str
 
 
-class V1JobDetails(BaseModel):
+class V1JobDetails(_BaseModel):
     status: V1JobStatus
     lifecycle: V1JobLifecycle
     outcome: V1JobOutcome | None = None
@@ -232,7 +232,7 @@ class V1JobStatus(enum.StrEnum):
     success = "success"
 
 
-class V1JobAction(BaseModel):
+class V1JobAction(_BaseModel):
     index: int
     status: str  # Unsure of enum here (spec unclear)
     start_time: datetime.datetime | None = None
@@ -257,12 +257,12 @@ class V1JobLifecycle(enum.StrEnum):
     finished = "finished"
 
 
-class V1JobStep(BaseModel):
+class V1JobStep(_BaseModel):
     name: str
     actions: list[V1JobAction]
 
 
-class JobOutputMessage(BaseModel):
+class JobOutputMessage(_BaseModel):
     message: str
     time: datetime.datetime
     truncated: bool
@@ -278,7 +278,7 @@ class JobTestResult(enum.StrEnum):
     skipped = "skipped"
 
 
-class JobTestMetadata(BaseModel):
+class JobTestMetadata(_BaseModel):
     name: str
     classname: str
     file: str
