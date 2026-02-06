@@ -224,12 +224,14 @@ class AppService:
             job_details = await self.api_client.get_v1_job_details(
                 self.project_slug, job_number
             )
-            actions = [
-                a for a in job_details.steps[step].actions if a.index == parallel_index
-            ]
+            try:
+                step_obj = job_details.steps[step]
+            except IndexError:
+                raise AppError(f"No steps matching filter (step={step})")
+            actions = [a for a in step_obj.actions if a.index == parallel_index]
             if len(actions) == 0:
                 raise AppError(
-                    f"No steps matching filter (step={step}, parallel_index={parallel_index})"
+                    f"No steps matching filter (parallel_index={parallel_index})"
                 )
             assert len(actions) == 1, f"found {len(actions)} matching actions"
             action = actions[0]
