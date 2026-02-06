@@ -7,7 +7,7 @@ A CLI for viewing CircleCI pipelines, workflows, jobs, and output.
 - View pipelines with workflow status
 - List workflows and jobs with status filtering
 - View detailed job information including steps
-- Display job output with ANSI color support
+- Display job tests and output
 - Smart caching and concurrent API requests for faster responses
 - Token efficient integration with Claude Code (via skill)
 
