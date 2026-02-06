@@ -127,8 +127,11 @@ class AppService:
         # If workflow IDs are provided use those. If pipeline ID was provided validate it against the workflows.
         # If no workflow IDs are, use workflows for the pipeline ID or latest pipeline for the current branch.
 
-        if pipeline_id_or_number is not None:
-            pipeline_id = await self._resolve_pipeline_id(pipeline_id_or_number)
+        pipeline_id = (
+            await self._resolve_pipeline_id(pipeline_id_or_number)
+            if pipeline_id_or_number is not None
+            else None
+        )
 
         if workflow_ids:
             # Fetch all workflows concurrently
