@@ -23,6 +23,34 @@ class AppService:
     api_client: api.APIClient
     cache_manager: cache_manager.CacheManager
 
+    async def get_pipeline(self, pipeline_id_or_number: str) -> PipelineWithWorkflows:
+        pipeline_id = await self._resolve_pipeline_id(pipeline_id_or_number)
+
+        pipeline = self.cache_manager.get_pipeline(pipeline_id)
+        if pipeline is None:
+            pipeline = await self.api_client.get_pipeline_by_id(pipeline_id)
+            self.cache_manager.set_pipeline(pipeline)
+
+        workflows = await self.get_pipeline_workflows(pipeline.id)
+
+        return PipelineWithWorkflows(pipeline=pipeline, workflows=workflows)
+
+    async def _resolve_pipeline_id(self, pipeline_id_or_number: str) -> str:
+        if not pipeline_id_or_number.isdigit():
+            return pipeline_id_or_number
+
+        pipeline_number = int(pipeline_id_or_number)
+        pipeline_id = self.cache_manager.get_pipeline_id_by_number(pipeline_number)
+        if pipeline_id is None:
+            pipeline = await self.api_client.get_pipeline_by_number(
+                self.project_slug, pipeline_number
+            )
+            self.cache_manager.set_pipeline_id_by_number(pipeline_number, pipeline.id)
+            self.cache_manager.set_pipeline(pipeline)
+            pipeline_id = pipeline.id
+
+        return pipeline_id
+
     async def get_latest_pipeline(
         self,
         branch: str,
@@ -92,12 +120,15 @@ class AppService:
 
     async def get_workflow_jobs(
         self,
-        pipeline_id: str | None,
+        pipeline_id_or_number: str | None,
         workflow_ids: list[str] | None,
         statuses: Set[api_types.JobStatus] | None = None,
     ) -> list[WorkflowWithJobs]:
         # If workflow IDs are provided use those. If pipeline ID was provided validate it against the workflows.
         # If no workflow IDs are, use workflows for the pipeline ID or latest pipeline for the current branch.
+
+        if pipeline_id_or_number is not None:
+            pipeline_id = await self._resolve_pipeline_id(pipeline_id_or_number)
 
         if workflow_ids:
             # Fetch all workflows concurrently

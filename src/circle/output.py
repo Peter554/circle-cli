@@ -28,30 +28,43 @@ def print_pipelines(
             console.print("No pipelines found")
             return
 
-        # Create panel for each pipeline
         for p in sorted(pipelines, key=lambda x: x.pipeline.created_at, reverse=True):
-            pipeline, workflows = p.pipeline, p.workflows
-            state = _format_pipeline_state(pipeline.state)
-            commit = _get_commit_subject(pipeline)
-            created = _format_relative_time(pipeline.created_at)
-            url = _build_pipeline_url(pipeline)
-            commit_hash = pipeline.vcs.revision[:7] if pipeline.vcs else "unknown"
+            _print_pipeline_panel(p)
 
-            # Sort workflows by created_at
-            sorted_workflows = sorted(workflows, key=lambda w: w.created_at)
 
-            # Build workflows status line
-            workflow_status = ", ".join(
-                f"{escape(w.name)}: {_format_workflow_status(w.status)}"
-                for w in sorted_workflows
-            )
+def print_pipeline_detail(
+    pipeline_with_workflows: service.PipelineWithWorkflows,
+    output_format: flags.OutputFormat,
+) -> None:
+    if output_format == flags.OutputFormat.json:
+        print(json.dumps(pipeline_with_workflows.model_dump(mode="json"), indent=2))
+    else:
+        _print_pipeline_panel(pipeline_with_workflows)
 
-            branch = (
-                escape(pipeline.vcs.branch)
-                if pipeline.vcs and pipeline.vcs.branch
-                else "unknown"
-            )
-            content = f"""[bold]ID:[/bold] {pipeline.id}
+
+def _print_pipeline_panel(p: service.PipelineWithWorkflows) -> None:
+    pipeline, workflows = p.pipeline, p.workflows
+    state = _format_pipeline_state(pipeline.state)
+    commit = _get_commit_subject(pipeline)
+    created = _format_relative_time(pipeline.created_at)
+    url = _build_pipeline_url(pipeline)
+    commit_hash = pipeline.vcs.revision[:7] if pipeline.vcs else "unknown"
+
+    # Sort workflows by created_at
+    sorted_workflows = sorted(workflows, key=lambda w: w.created_at)
+
+    # Build workflows status line
+    workflow_status = ", ".join(
+        f"{escape(w.name)}: {_format_workflow_status(w.status)}"
+        for w in sorted_workflows
+    )
+
+    branch = (
+        escape(pipeline.vcs.branch)
+        if pipeline.vcs and pipeline.vcs.branch
+        else "unknown"
+    )
+    content = f"""[bold]ID:[/bold] {pipeline.id}
 [bold]Number:[/bold] {pipeline.number}
 [bold]Created:[/bold] {created}
 [bold]State:[/bold] {state}
@@ -61,12 +74,19 @@ def print_pipelines(
 [bold]Workflows:[/bold] {workflow_status}
 [bold]Link:[/bold] {_format_link(url)}"""
 
-            panel = Panel(
-                content,
-                title=f"[bold]Pipeline {pipeline.id}[/bold]",
-                border_style=_get_pipeline_border_style(pipeline.state, workflows),
-            )
-            console.print(panel)
+    if pipeline.errors:
+        error_lines = "\n".join(
+            f"  [red]{escape(e.type)}:[/red] {escape(e.message)}"
+            for e in pipeline.errors
+        )
+        content += f"\n[bold]Errors:[/bold]\n{error_lines}"
+
+    panel = Panel(
+        content,
+        title=f"[bold]Pipeline {pipeline.id}[/bold]",
+        border_style=_get_pipeline_border_style(pipeline.state, workflows),
+    )
+    console.print(panel)
 
 
 def print_workflows(

@@ -46,6 +46,36 @@ class APIClient:
         items = await self._fetch_paginated(url, params, max_items=limit)
         return [api_types.Pipeline.model_validate(item) for item in items]
 
+    async def get_pipeline_by_id(self, pipeline_id: str) -> api_types.Pipeline:
+        """
+        GET /pipeline/{pipeline-id}
+        """
+        url = f"{self.base_url_v2}/pipeline/{pipeline_id}"
+        async with httpx.AsyncClient() as client:
+            async with self._semaphore:
+                response = await client.get(url, headers=self._headers(), timeout=30)
+            if response.status_code != 200:
+                raise APIError(
+                    f"Failed to fetch from {url}: {response.status_code} {response.text}"
+                )
+            return api_types.Pipeline.model_validate(response.json())
+
+    async def get_pipeline_by_number(
+        self, project_slug: str, pipeline_number: int
+    ) -> api_types.Pipeline:
+        """
+        GET /project/{project-slug}/pipeline/{pipeline-number}
+        """
+        url = f"{self.base_url_v2}/project/{project_slug}/pipeline/{pipeline_number}"
+        async with httpx.AsyncClient() as client:
+            async with self._semaphore:
+                response = await client.get(url, headers=self._headers(), timeout=30)
+            if response.status_code != 200:
+                raise APIError(
+                    f"Failed to fetch from {url}: {response.status_code} {response.text}"
+                )
+            return api_types.Pipeline.model_validate(response.json())
+
     async def get_workflows(self, pipeline_id: str) -> list[api_types.Workflow]:
         """
         GET /pipeline/{pipeline-id}/workflow

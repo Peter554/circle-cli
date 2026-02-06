@@ -83,6 +83,20 @@ circle pipelines -b @any
 circle pipelines -n 10
 ```
 
+#### details
+
+Show details for a specific pipeline.
+
+**Aliases:** `detail`
+
+```bash
+# By pipeline ID
+circle pipelines details <pipeline-id>
+
+# By pipeline number
+circle pipelines details 123
+```
+
 ### workflows
 
 **Aliases:** `workflow`, `w`
@@ -92,7 +106,7 @@ circle pipelines -n 10
 Show workflows for a pipeline.
 
 **Flags:**
-- `--pipeline`, `-p` - Pipeline ID (defaults to latest pipeline for current branch)
+- `--pipeline`, `-p` - Pipeline ID or number (defaults to latest pipeline for current branch)
 
 ```bash
 # These are all equivalent
@@ -102,6 +116,7 @@ circle w
 
 # Show workflows for a specific pipeline
 circle workflows --pipeline abc123
+circle workflows --pipeline 123
 ```
 
 ### jobs
@@ -113,7 +128,7 @@ circle workflows --pipeline abc123
 Show jobs for workflows.
 
 **Flags:**
-- `--pipeline`, `-p` - Pipeline ID (defaults to latest pipeline for current branch)
+- `--pipeline`, `-p` - Pipeline ID or number (defaults to latest pipeline for current branch)
 - `--workflow`, `-w` - Filter by workflow ID (can be specified multiple times)
 - `--status`, `-s` - Filter by job status (can be specified multiple times)
 

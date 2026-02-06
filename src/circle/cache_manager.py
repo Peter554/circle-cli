@@ -49,6 +49,23 @@ class CacheManager:
 
         self.set_latest_pipeline_for_branch(branch, pipelines[0])
 
+    def get_pipeline_id_by_number(self, pipeline_number: int) -> str | None:
+        cache_key = f"pipeline_id_by_number:{pipeline_number}"
+        return self.cache.get(cache_key)
+
+    def set_pipeline_id_by_number(self, pipeline_number: int, pipeline_id: str) -> None:
+        cache_key = f"pipeline_id_by_number:{pipeline_number}"
+        self.cache.set(cache_key, pipeline_id, ttl=self.finished_ttl_seconds)
+
+    def get_pipeline(self, pipeline_id: str) -> api_types.Pipeline | None:
+        cache_key = f"pipeline:{pipeline_id}"
+        return self.cache.get(cache_key)
+
+    def set_pipeline(self, pipeline: api_types.Pipeline) -> None:
+        cache_key = f"pipeline:{pipeline.id}"
+        # Use in-progress TTL here since pipeline completion is unclear.
+        self.cache.set(cache_key, pipeline, ttl=self.in_progress_ttl_seconds)
+
     def get_workflow(self, workflow_id: str) -> api_types.Workflow | None:
         cache_key = f"workflow:{workflow_id}"
         return self.cache.get(cache_key)

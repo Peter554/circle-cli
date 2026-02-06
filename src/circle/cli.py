@@ -70,15 +70,33 @@ async def pipelines_list(
     output.print_pipelines(pipelines, common_flags.output_format)
 
 
+@pipelines_app.command(name="details", alias=["detail"])
+async def pipeline_details(
+    pipeline_id_or_number: Annotated[
+        str,
+        cyclopts.Parameter(
+            help="The pipeline ID or pipeline number",
+        ),
+    ],
+    *,
+    common_flags: flags.CommonFlags = flags.CommonFlags(),
+) -> None:
+    """Show pipeline details"""
+    _setup_logging(common_flags.log_level)
+    app_service = _get_app_service(common_flags)
+    result = await app_service.get_pipeline(pipeline_id_or_number)
+    output.print_pipeline_detail(result, common_flags.output_format)
+
+
 @workflows_app.default
 @workflows_app.command(name="list")
 async def workflows_list(
     *,
-    pipeline: Annotated[
+    pipeline_id_or_number: Annotated[
         str | None,
         cyclopts.Parameter(
             name=["--pipeline", "-p"],
-            help="The pipeline ID. Defaults to the latest pipeline for the currently checked out branch.",
+            help="The pipeline ID or number. Defaults to the latest pipeline for the currently checked out branch.",
         ),
     ] = None,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
@@ -86,7 +104,9 @@ async def workflows_list(
     """Show workflows for a pipeline"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    workflows_with_jobs = await app_service.get_workflow_jobs(pipeline, None)
+    workflows_with_jobs = await app_service.get_workflow_jobs(
+        pipeline_id_or_number, None
+    )
     output.print_workflows(workflows_with_jobs, common_flags.output_format)
 
 
@@ -94,14 +114,14 @@ async def workflows_list(
 @jobs_app.command(name="list")
 async def jobs_list(
     *,
-    pipeline: Annotated[
+    pipeline_id_or_number: Annotated[
         str | None,
         cyclopts.Parameter(
             name=["--pipeline", "-p"],
-            help="The pipeline ID. Defaults to the latest pipeline for the currently checked out branch.",
+            help="The pipeline ID or number. Defaults to the latest pipeline for the currently checked out branch.",
         ),
     ] = None,
-    workflow: Annotated[
+    workflow_ids: Annotated[
         list[str] | None,
         cyclopts.Parameter(
             name=["--workflow", "-w"],
@@ -109,7 +129,7 @@ async def jobs_list(
             negative=(),
         ),
     ] = None,
-    status: Annotated[
+    statuses: Annotated[
         list[api_types.JobStatus] | None,
         cyclopts.Parameter(
             name=["--status", "-s"],
@@ -123,7 +143,7 @@ async def jobs_list(
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     jobs = await app_service.get_workflow_jobs(
-        pipeline, workflow, set(status) if status else None
+        pipeline_id_or_number, workflow_ids, set(statuses) if statuses else None
     )
     output.print_jobs(jobs, common_flags.output_format)
 
@@ -137,7 +157,7 @@ async def job_details(
         ),
     ],
     *,
-    step_status: Annotated[
+    step_statuses: Annotated[
         list[str] | None,
         cyclopts.Parameter(
             name=["--step-status", "-s"],
@@ -151,7 +171,7 @@ async def job_details(
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     job_details = await app_service.get_job_details(
-        job_number, set(step_status) if step_status else None
+        job_number, set(step_statuses) if step_statuses else None
     )
     output.print_job_details(job_details, common_flags.output_format)
 
@@ -206,7 +226,7 @@ async def job_tests(
         ),
     ],
     *,
-    status: Annotated[
+    statuses: Annotated[
         list[str] | None,
         cyclopts.Parameter(
             name=["--status", "-s"],
@@ -234,8 +254,8 @@ async def job_tests(
     """Show test metadata for a job"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    statuses = _parse_test_statuses(status) if status else None
-    tests = await app_service.get_job_tests(job_number, statuses, file)
+    parsed_statuses = _parse_test_statuses(statuses) if statuses else None
+    tests = await app_service.get_job_tests(job_number, parsed_statuses, file)
     output.print_job_tests(tests, common_flags.output_format, show_messages)
 
 
