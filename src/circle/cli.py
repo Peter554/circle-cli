@@ -86,8 +86,8 @@ async def workflows_list(
     """Show workflows for a pipeline"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    workflows = await app_service.get_pipeline_workflows(pipeline)
-    output.print_workflows(workflows, common_flags.output_format)
+    workflows_with_jobs = await app_service.get_workflow_jobs(pipeline, None)
+    output.print_workflows(workflows_with_jobs, common_flags.output_format)
 
 
 @jobs_app.default

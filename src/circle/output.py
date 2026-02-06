@@ -70,31 +70,34 @@ def print_pipelines(
 
 
 def print_workflows(
-    workflows: list[api_types.Workflow], output_format: flags.OutputFormat
+    workflows_with_jobs: list[service.WorkflowWithJobs],
+    output_format: flags.OutputFormat,
 ) -> None:
     if output_format == flags.OutputFormat.json:
-        data = [w.model_dump(mode="json") for w in workflows]
+        data = [wj.model_dump(mode="json") for wj in workflows_with_jobs]
         print(json.dumps(data, indent=2))
     else:
-        if not workflows:
+        if not workflows_with_jobs:
             console.print("No workflows found")
             return
 
-        # Group workflows by pipeline_id
-        workflows_by_pipeline: dict[str, list[api_types.Workflow]] = defaultdict(list)
-        for workflow in workflows:
-            workflows_by_pipeline[workflow.pipeline_id].append(workflow)
+        # Group by pipeline_id
+        by_pipeline: dict[str, list[service.WorkflowWithJobs]] = defaultdict(list)
+        for wj in workflows_with_jobs:
+            by_pipeline[wj.workflow.pipeline_id].append(wj)
 
         # Display workflows grouped by pipeline
-        for pipeline_id, pipeline_workflows in workflows_by_pipeline.items():
+        for pipeline_id, pipeline_wjs in by_pipeline.items():
             console.print(f"\n[bold]Pipeline:[/bold] {pipeline_id}\n")
 
             # Create panel for each workflow, sorted by created_at
-            for workflow in sorted(pipeline_workflows, key=lambda w: w.created_at):
+            for wj in sorted(pipeline_wjs, key=lambda x: x.workflow.created_at):
+                workflow = wj.workflow
                 status = _format_workflow_status(workflow.status)
                 duration = _format_duration(workflow.created_at, workflow.stopped_at)
                 created = _format_relative_time(workflow.created_at)
                 url = _build_workflow_url(workflow)
+                job_summary = _format_job_summary(wj.jobs)
 
                 content = f"""
 [bold]ID:[/bold] {workflow.id}
@@ -102,6 +105,7 @@ def print_workflows(
 [bold]Created:[/bold] {created}
 [bold]Status:[/bold] {status}
 [bold]Duration:[/bold] {duration}
+[bold]Jobs:[/bold] {job_summary}
 [bold]Link:[/bold] {_format_link(url)}"""
 
                 panel = Panel(
@@ -372,6 +376,29 @@ def print_job_output(
 
             panel = Panel(content, title=title, title_align="left")
             console.print(panel)
+
+
+def _format_job_summary(jobs: list[api_types.Job]) -> str:
+    """Format a summary of job statuses like '2 success, 1 running, 1 failed'."""
+    if not jobs:
+        return "no jobs"
+
+    running = sum(1 for j in jobs if j.status == api_types.JobStatus.running)
+    success = sum(1 for j in jobs if j.status == api_types.JobStatus.success)
+    failed = sum(1 for j in jobs if j.status == api_types.JobStatus.failed)
+    other = len(jobs) - running - success - failed
+
+    parts: list[str] = []
+    if running:
+        parts.append(f"[yellow]{running} running[/yellow]")
+    if success:
+        parts.append(f"[green]{success} success[/green]")
+    if failed:
+        parts.append(f"[red]{failed} failed[/red]")
+    if other:
+        parts.append(f"{other} other")
+
+    return ", ".join(parts)
 
 
 def _format_duration_ms(duration_ms: int | None) -> str:
