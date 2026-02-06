@@ -247,7 +247,7 @@ These flags are available on all commands:
 - `--repo` - Repository name
 - `--output-format` - Output format (`pretty` or `json`)
 - `--no-cache` - Disable caching
-- `--log-level` - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `--log-level` - Log level (`debug`, `info`, `warning`, `error`, `critical`)
 
 ## Claude Code Integration
 

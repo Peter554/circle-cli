@@ -42,11 +42,11 @@ LogLevelFlag = Annotated[
     str,
     cyclopts.Parameter(
         name=["--log-level"],
-        help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        help="Log level (debug, info, warning, error, critical)",
     ),
 ]
 
-DEFAULT_LOG_LEVEL = "WARNING"
+DEFAULT_LOG_LEVEL = "warning"
 
 
 class OutputFormat(enum.StrEnum):
