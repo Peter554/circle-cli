@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Set
 
 import pydantic
@@ -127,6 +127,9 @@ class AppService:
             ]
         jobs_lists = [task.result() for task in tasks]
 
+        # Count jobs by status before filtering
+        counts_lists = [_count_jobs_by_status(jobs) for jobs in jobs_lists]
+
         # Filter jobs by status if specified
         if statuses is not None:
             jobs_lists = [
@@ -135,8 +138,8 @@ class AppService:
 
         # Pair workflows with their jobs
         return [
-            WorkflowWithJobs(workflow=workflow, jobs=jobs)
-            for workflow, jobs in zip(workflows, jobs_lists)
+            WorkflowWithJobs(workflow=workflow, jobs=jobs, job_counts_by_status=counts)
+            for workflow, jobs, counts in zip(workflows, jobs_lists, counts_lists)
         ]
 
     async def get_job_details(
@@ -193,7 +196,7 @@ class AppService:
             actions = [
                 a for a in job_details.steps[step].actions if a.index == parallel_index
             ]
-            assert len(actions) == 1
+            assert len(actions) == 1, f"found {len(actions)} matching actions"
             action = actions[0]
             output_url = action.output_url
             if output_url is None:
@@ -276,6 +279,12 @@ class AppService:
         return v1_job_details
 
 
+def _count_jobs_by_status(
+    jobs: list[api_types.Job],
+) -> dict[api_types.JobStatus, int]:
+    return dict(Counter(job.status for job in jobs))
+
+
 class _BaseModel(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(frozen=True)
 
@@ -288,6 +297,7 @@ class PipelineWithWorkflows(_BaseModel):
 class WorkflowWithJobs(_BaseModel):
     workflow: api_types.Workflow
     jobs: list[api_types.Job]
+    job_counts_by_status: dict[api_types.JobStatus, int]
 
 
 class JobDetailsWithSteps(_BaseModel):

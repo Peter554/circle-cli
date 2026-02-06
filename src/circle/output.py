@@ -97,7 +97,7 @@ def print_workflows(
                 duration = _format_duration(workflow.created_at, workflow.stopped_at)
                 created = _format_relative_time(workflow.created_at)
                 url = _build_workflow_url(workflow)
-                job_summary = _format_job_summary(wj.jobs)
+                job_summary = _format_job_summary(wj.job_counts_by_status)
 
                 content = f"""
 [bold]ID:[/bold] {workflow.id}
@@ -131,53 +131,64 @@ def print_jobs(
         # Display jobs for each workflow
         for wj in sorted(jobs, key=lambda x: x.workflow.created_at):
             workflow, job_list = wj.workflow, wj.jobs
-            console.print(
-                f"\n[bold]Workflow:[/bold] {escape(workflow.name)} ({workflow.id})\n"
-            )
+            job_summary = _format_job_summary(wj.job_counts_by_status)
+
+            renderables: list[Text | Table] = [
+                Text.from_markup(f"[bold]Workflow ID:[/bold] {workflow.id}"),
+                Text.from_markup(
+                    f"[bold]Workflow name:[/bold] {escape(workflow.name)}"
+                ),
+                Text.from_markup(f"[bold]Jobs summary:[/bold] {job_summary}"),
+            ]
 
             if not job_list:
-                console.print("No matching jobs")
-                continue
+                renderables.append(Text("No jobs matching filter"))
+            else:
+                # Sort jobs by status priority, then chronologically
+                sorted_jobs = sorted(
+                    job_list, key=lambda j: _get_job_status_priority(j.status)
+                )
 
-            # Sort jobs by status priority, then chronologically
-            sorted_jobs = sorted(
-                job_list, key=lambda j: _get_job_status_priority(j.status)
+                # Create table
+                table = Table(show_header=True, header_style="bold")
+                table.add_column("Number")
+                table.add_column("Name", overflow="ellipsis", max_width=64)
+                table.add_column("Status")
+                table.add_column("Started")
+                table.add_column("Duration")
+                table.add_column("Link")
+
+                for job in sorted_jobs:
+                    status = _format_job_status(job.status)
+                    started = (
+                        _format_relative_time(job.started_at) if job.started_at else ""
+                    )
+                    duration = _format_duration(job.started_at, job.stopped_at)
+
+                    # Build link if job_number exists
+                    if job.job_number is not None:
+                        url = _build_job_url(job)
+                        link = _format_link(url)
+                    else:
+                        link = ""
+
+                    table.add_row(
+                        str(job.job_number or ""),
+                        escape(job.name),
+                        status,
+                        started,
+                        duration,
+                        link,
+                    )
+
+                renderables.append(table)
+
+            panel = Panel(
+                Group(*renderables),
+                title=f"[bold]{escape(workflow.name)} ({workflow.id})[/bold]",
+                border_style=_get_workflow_border_style(workflow.status),
             )
-
-            # Create table
-            table = Table(show_header=True, header_style="bold")
-            table.add_column("Number")
-            table.add_column("Name", overflow="ellipsis", max_width=64)
-            table.add_column("Status")
-            table.add_column("Started")
-            table.add_column("Duration")
-            table.add_column("Link")
-
-            for job in sorted_jobs:
-                status = _format_job_status(job.status)
-                started = (
-                    _format_relative_time(job.started_at) if job.started_at else ""
-                )
-                duration = _format_duration(job.started_at, job.stopped_at)
-
-                # Build link if job_number exists
-                if job.job_number is not None:
-                    url = _build_job_url(job)
-                    link = _format_link(url)
-                else:
-                    link = ""
-
-                table.add_row(
-                    str(job.job_number or ""),
-                    escape(job.name),
-                    status,
-                    started,
-                    duration,
-                    link,
-                )
-
-            console.print(table)
-            console.print()
+            console.print(panel)
 
 
 def print_job_details(
@@ -224,7 +235,7 @@ def print_job_details(
             renderables.append(Text())
 
             if not step_actions:
-                renderables.append(Text("No matching steps"))
+                renderables.append(Text("No steps matching filter"))
                 continue
 
             table = Table(show_header=True, header_style="bold")
@@ -378,15 +389,15 @@ def print_job_output(
             console.print(panel)
 
 
-def _format_job_summary(jobs: list[api_types.Job]) -> str:
+def _format_job_summary(counts: dict[api_types.JobStatus, int]) -> str:
     """Format a summary of job statuses like '2 success, 1 running, 1 failed'."""
-    if not jobs:
+    if not counts:
         return "no jobs"
 
-    running = sum(1 for j in jobs if j.status == api_types.JobStatus.running)
-    success = sum(1 for j in jobs if j.status == api_types.JobStatus.success)
-    failed = sum(1 for j in jobs if j.status == api_types.JobStatus.failed)
-    other = len(jobs) - running - success - failed
+    running = counts.get(api_types.JobStatus.running, 0)
+    success = counts.get(api_types.JobStatus.success, 0)
+    failed = counts.get(api_types.JobStatus.failed, 0)
+    other = sum(counts.values()) - running - success - failed
 
     parts: list[str] = []
     if running:
