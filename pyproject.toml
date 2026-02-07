@@ -27,5 +27,6 @@ dev = [
     "deptry>=0.24.0",
     "pytest>=9.0.2",
     "ruff>=0.14.14",
+    "time-machine>=3.2.0",
     "ty>=0.0.14",
 ]
