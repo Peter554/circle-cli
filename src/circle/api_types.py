@@ -53,7 +53,7 @@ class VCS(_BaseModel):
     provider_name: str
     origin_repository_url: str
     target_repository_url: str
-    revision: str
+    revision: str | None
     commit: VCSCommit | None = None
     branch: str | None = None
     tag: str | None = None
@@ -167,7 +167,7 @@ class JobDetails(_BaseModel):
     contexts: list[JobContext]
     organization: JobOrganization
     queued_at: datetime.datetime
-    stopped_at: datetime.datetime | None
+    stopped_at: datetime.datetime | None = None
 
 
 class JobProject(_BaseModel):

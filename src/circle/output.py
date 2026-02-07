@@ -48,7 +48,11 @@ def _print_pipeline_panel(p: service.PipelineWithWorkflows) -> None:
     commit = _get_commit_subject(pipeline)
     created = _format_relative_time(pipeline.created_at)
     url = _build_pipeline_url(pipeline)
-    commit_hash = pipeline.vcs.revision[:7] if pipeline.vcs else "unknown"
+    commit_hash = (
+        pipeline.vcs.revision[:7]
+        if pipeline.vcs and pipeline.vcs.revision
+        else "unknown"
+    )
 
     # Sort workflows by created_at
     sorted_workflows = sorted(workflows, key=lambda w: w.created_at)
