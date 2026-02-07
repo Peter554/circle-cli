@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import typing
 from collections import Counter, defaultdict
 from collections.abc import Set
 
@@ -9,8 +10,8 @@ import pydantic
 
 from . import api, api_types, cache_manager, git
 
-CURRENT_BRANCH = "@current"
-ANY_BRANCH = "@any"
+CURRENT_BRANCH: typing.Final = "@current"
+ANY_BRANCH: typing.Final = "@any"
 
 
 class AppError(Exception):
