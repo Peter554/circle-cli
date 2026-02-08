@@ -76,7 +76,9 @@ class APIClient:
                 )
             return api_types.Pipeline.model_validate(response.json())
 
-    async def get_workflows(self, pipeline_id: str) -> list[api_types.Workflow]:
+    async def get_pipeline_workflows(
+        self, pipeline_id: str
+    ) -> list[api_types.Workflow]:
         """
         GET /pipeline/{pipeline-id}/workflow
         """
@@ -98,7 +100,7 @@ class APIClient:
                 )
             return api_types.Workflow.model_validate(response.json())
 
-    async def get_jobs(self, workflow_id: str) -> list[api_types.Job]:
+    async def get_workflow_jobs(self, workflow_id: str) -> list[api_types.Job]:
         """
         GET /workflow/{id}/job
         """

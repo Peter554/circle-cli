@@ -114,7 +114,7 @@ class AppService:
 
         workflows = self.cache_manager.get_pipeline_workflows(pipeline_id)
         if workflows is None:
-            workflows = await self.api_client.get_workflows(pipeline_id)
+            workflows = await self.api_client.get_pipeline_workflows(pipeline_id)
             self.cache_manager.set_pipeline_workflows(pipeline_id, workflows)
 
         return workflows
@@ -297,7 +297,7 @@ class AppService:
     ) -> list[api_types.Job]:
         jobs = self.cache_manager.get_workflow_jobs(workflow.id)
         if jobs is None:
-            jobs = await self.api_client.get_jobs(workflow.id)
+            jobs = await self.api_client.get_workflow_jobs(workflow.id)
             self.cache_manager.set_workflow_jobs(workflow.id, workflow.status, jobs)
         return jobs
 

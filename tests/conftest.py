@@ -5,6 +5,19 @@ from datetime import datetime, timedelta, timezone
 from circle import api_types
 
 
+class FakeCache:
+    def __init__(self):
+        self.store: dict[str, object] = {}
+        self.ttls: dict[str, int | None] = {}
+
+    def get(self, k: str):
+        return self.store.get(k)
+
+    def set(self, k: str, v: object, ttl: int | None):
+        self.store[k] = v
+        self.ttls[k] = ttl
+
+
 def _deep_merge(base: dict, overrides: dict) -> dict:
     result = base.copy()
     for k, v in overrides.items():
