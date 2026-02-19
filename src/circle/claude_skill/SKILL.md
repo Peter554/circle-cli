@@ -49,3 +49,11 @@ Investigate all failures unless told otherwise. Watch for flaky or unrelated fai
 ## URLs
 
 If given a CircleCI URL, extract the pipeline ID/number, workflow ID, or job number from it and use the appropriate command.
+
+## Text wrapping
+
+If you experience trouble parsing output due to text wrapping onto multiple lines, try setting the COLUMNS environment variable. For example:
+
+```
+COLUMNS=300 circle jobs tests <job-number> --status failed
+```
