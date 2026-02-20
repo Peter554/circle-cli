@@ -1,6 +1,5 @@
-"""Rich output formatting for CLI."""
+"""Rich (pretty) output formatting."""
 
-import json
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -11,19 +10,23 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from . import api_types, flags, service, summary
+from .. import api_types, service, summary
+from ._common import (
+    build_job_url,
+    build_pipeline_url,
+    build_workflow_url,
+    get_commit_subject,
+    get_job_status_priority,
+)
 
 console = Console()
 
 
-def print_pipelines(
-    pipelines: list[service.PipelineWithWorkflows],
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [p.model_dump(mode="json") for p in pipelines]
-        print(json.dumps(data, indent=2))
-    else:
+class PrettyOutput:
+    def print_pipelines(
+        self,
+        pipelines: list[service.PipelineWithWorkflows],
+    ) -> None:
         if not pipelines:
             console.print("No pipelines found")
             return
@@ -31,76 +34,16 @@ def print_pipelines(
         for p in sorted(pipelines, key=lambda x: x.pipeline.created_at, reverse=True):
             _print_pipeline_panel(p)
 
-
-def print_pipeline_detail(
-    pipeline_with_workflows: service.PipelineWithWorkflows,
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        print(json.dumps(pipeline_with_workflows.model_dump(mode="json"), indent=2))
-    else:
+    def print_pipeline_detail(
+        self,
+        pipeline_with_workflows: service.PipelineWithWorkflows,
+    ) -> None:
         _print_pipeline_panel(pipeline_with_workflows)
 
-
-def _print_pipeline_panel(p: service.PipelineWithWorkflows) -> None:
-    pipeline, workflows = p.pipeline, p.workflows
-    state = _format_pipeline_state(pipeline.state)
-    commit = _get_commit_subject(pipeline)
-    created = _format_relative_time(pipeline.created_at)
-    url = _build_pipeline_url(pipeline)
-    commit_hash = (
-        pipeline.vcs.revision[:7]
-        if pipeline.vcs and pipeline.vcs.revision
-        else "unknown"
-    )
-
-    # Sort workflows by created_at
-    sorted_workflows = sorted(workflows, key=lambda w: w.created_at)
-
-    # Build workflows status line
-    workflow_status = ", ".join(
-        f"{escape(w.name)}: {_format_workflow_status(w.status)}"
-        for w in sorted_workflows
-    )
-
-    branch = (
-        escape(pipeline.vcs.branch)
-        if pipeline.vcs and pipeline.vcs.branch
-        else "unknown"
-    )
-    content = f"""[bold]ID:[/bold] {pipeline.id}
-[bold]Number:[/bold] {pipeline.number}
-[bold]Created:[/bold] {created}
-[bold]State:[/bold] {state}
-[bold]Branch:[/bold] {branch}
-[bold]Commit:[/bold] {commit_hash} {escape(commit)}
-[bold]Triggered by:[/bold] {escape(pipeline.trigger.actor.login)}
-[bold]Workflows:[/bold] {workflow_status}
-[bold]Link:[/bold] {_format_link(url)}"""
-
-    if pipeline.errors:
-        error_lines = "\n".join(
-            f"  [red]{escape(e.type)}:[/red] {escape(e.message)}"
-            for e in pipeline.errors
-        )
-        content += f"\n[bold]Errors:[/bold]\n{error_lines}"
-
-    panel = Panel(
-        content,
-        title=f"[bold]Pipeline {pipeline.id}[/bold]",
-        border_style=_get_pipeline_border_style(pipeline.state, workflows),
-    )
-    console.print(panel)
-
-
-def print_workflows(
-    workflows_with_jobs: list[service.WorkflowWithJobs],
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [wj.model_dump(mode="json") for wj in workflows_with_jobs]
-        print(json.dumps(data, indent=2))
-    else:
+    def print_workflows(
+        self,
+        workflows_with_jobs: list[service.WorkflowWithJobs],
+    ) -> None:
         if not workflows_with_jobs:
             console.print("No workflows found")
             return
@@ -120,7 +63,7 @@ def print_workflows(
                 status = _format_workflow_status(workflow.status)
                 duration = _format_duration(workflow.created_at, workflow.stopped_at)
                 created = _format_relative_time(workflow.created_at)
-                url = _build_workflow_url(workflow)
+                url = build_workflow_url(workflow)
                 job_summary = _format_job_summary(wj.job_counts_by_status)
 
                 content = f"""
@@ -139,15 +82,10 @@ def print_workflows(
                 )
                 console.print(panel)
 
-
-def print_jobs(
-    jobs: list[service.WorkflowWithJobs],
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [j.model_dump(mode="json") for j in jobs]
-        print(json.dumps(data, indent=2))
-    else:
+    def print_jobs(
+        self,
+        jobs: list[service.WorkflowWithJobs],
+    ) -> None:
         if not jobs:
             console.print("No jobs found")
             return
@@ -170,7 +108,7 @@ def print_jobs(
             else:
                 # Sort jobs by status priority, then chronologically
                 sorted_jobs = sorted(
-                    job_list, key=lambda j: _get_job_status_priority(j.status)
+                    job_list, key=lambda j: get_job_status_priority(j.status)
                 )
 
                 # Create table
@@ -191,7 +129,7 @@ def print_jobs(
 
                     # Build link if job_number exists
                     if job.job_number is not None:
-                        url = _build_job_url(job)
+                        url = build_job_url(job)
                         link = _format_link(url)
                     else:
                         link = ""
@@ -214,14 +152,10 @@ def print_jobs(
             )
             console.print(panel)
 
-
-def print_job_details(
-    job_details: service.JobDetailsWithSteps,
-    output_format: flags.OutputFormat,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        print(json.dumps(job_details.model_dump(mode="json"), indent=2))
-    else:
+    def print_job_details(
+        self,
+        job_details: service.JobDetailsWithSteps,
+    ) -> None:
         details = job_details.details
 
         # Build job summary
@@ -230,7 +164,7 @@ def print_job_details(
         duration = _format_duration_ms(details.duration)
         url = details.web_url
 
-        summary = f"""[bold]Number:[/bold] {details.number}
+        summary_ = f"""[bold]Number:[/bold] {details.number}
 [bold]Name:[/bold] {escape(details.name)}
 [bold]Status:[/bold] {status}
 [bold]Started:[/bold] {started}
@@ -239,7 +173,7 @@ def print_job_details(
 [bold]Link:[/bold] {_format_link(url)}"""
 
         # Build step tables
-        renderables = [Text.from_markup(summary)]
+        renderables = [Text.from_markup(summary_)]
 
         for action_index in sorted(job_details.steps_by_action_index.keys()):
             step_actions = job_details.steps_by_action_index[action_index]
@@ -293,16 +227,11 @@ def print_job_details(
         console.print(panel)
         console.print()
 
-
-def print_job_tests(
-    tests: list[api_types.JobTestMetadata],
-    output_format: flags.OutputFormat,
-    show_messages: bool = False,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [t.model_dump(mode="json") for t in tests]
-        print(json.dumps(data, indent=2))
-    else:
+    def print_job_tests(
+        self,
+        tests: list[api_types.JobTestMetadata],
+        include_messages: bool,
+    ) -> None:
         if not tests:
             console.print("No tests found")
             return
@@ -348,7 +277,7 @@ def print_job_tests(
                 renderables.append(table)
 
             # Show failure messages at the bottom of the panel
-            if show_messages and failed_tests:
+            if include_messages and failed_tests:
                 renderables.append(Text("\nFailure Messages:", style="bold red"))
                 for test in failed_tests:
                     renderables.append(Text(f"\n{test.name}", style="bold"))
@@ -360,24 +289,11 @@ def print_job_tests(
             panel = Panel(Group(*renderables))
             console.print(panel)
 
-
-def print_job_output(
-    job_output: api_types.JobOutput,
-    output_format: flags.OutputFormat,
-    try_extract_summary: bool = False,
-) -> None:
-    if output_format == flags.OutputFormat.json:
-        data = [
-            {
-                "message": Text.from_ansi(msg.message).plain,
-                "time": msg.time.isoformat(),
-                "truncated": msg.truncated,
-                "type": msg.type,
-            }
-            for msg in job_output
-        ]
-        print(json.dumps(data, indent=2))
-    else:
+    def print_job_output(
+        self,
+        job_output: api_types.JobOutput,
+        try_extract_summary: bool,
+    ) -> None:
         if not job_output:
             console.print("No output found")
             return
@@ -533,24 +449,11 @@ def _get_pipeline_border_style(
     return "white"
 
 
-def _get_commit_subject(pipeline: api_types.Pipeline) -> str:
-    """Get commit subject."""
-    if pipeline.vcs and pipeline.vcs.commit and pipeline.vcs.commit.subject:
-        return pipeline.vcs.commit.subject
-    return ""
-
-
 def _format_relative_time(dt: datetime) -> str:
     # Ensure dt is timezone-aware
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return humanize.naturaltime(dt)
-
-
-def _build_pipeline_url(pipeline: api_types.Pipeline) -> str:
-    """Build CircleCI pipeline URL."""
-    vcs_provider, org, repo = _parse_project_slug(pipeline.project_slug)
-    return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{pipeline.number}"
 
 
 def _format_workflow_status(status: api_types.WorkflowStatus) -> str:
@@ -584,25 +487,9 @@ def _format_duration(start: datetime | None, stop: datetime | None) -> str:
     return humanize.naturaldelta(delta)
 
 
-def _build_workflow_url(workflow: api_types.Workflow) -> str:
-    """Build CircleCI workflow URL."""
-    vcs_provider, org, repo = _parse_project_slug(workflow.project_slug)
-    return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{workflow.pipeline_number}/workflows/{workflow.id}"
-
-
 def _format_link(url: str) -> str:
     """Format a clickable link with consistent styling."""
     return f"[link={url}][blue underline]link[/blue underline][/link]"
-
-
-def _parse_project_slug(project_slug: str) -> tuple[str, str, str]:
-    """Parse project_slug into (vcs_provider, org, repo)."""
-    parts = project_slug.split("/")
-    assert len(parts) == 3, f"Invalid project slug: {project_slug}"
-    vcs_provider = "github" if parts[0] == "gh" else "bitbucket"
-    org = parts[1]
-    repo = parts[2]
-    return vcs_provider, org, repo
 
 
 def _get_workflow_color(status: api_types.WorkflowStatus) -> str:
@@ -639,36 +526,6 @@ def _format_job_status(status: api_types.JobStatus) -> str:
     return str(status)
 
 
-def _get_job_status_priority(status: api_types.JobStatus) -> int:
-    """Get priority for job status sorting (lower = higher priority)."""
-    # Failed/errored first
-    if status in {
-        api_types.JobStatus.failed,
-        api_types.JobStatus.infrastructure_fail,
-        api_types.JobStatus.timedout,
-        api_types.JobStatus.unauthorized,
-    }:
-        return 0
-    # Running/queued second
-    elif status in {
-        api_types.JobStatus.running,
-        api_types.JobStatus.queued,
-    }:
-        return 1
-    # Success third
-    elif status == api_types.JobStatus.success:
-        return 2
-    # Everything else last
-    else:
-        return 3
-
-
-def _build_job_url(job: api_types.Job) -> str:
-    """Build CircleCI job URL."""
-    vcs_provider, org, repo = _parse_project_slug(job.project_slug)
-    return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/jobs/{job.job_number}"
-
-
 def _format_test_result(result: api_types.JobTestResult) -> str:
     """Format test result with color."""
     if result == api_types.JobTestResult.success:
@@ -678,3 +535,54 @@ def _format_test_result(result: api_types.JobTestResult) -> str:
     elif result == api_types.JobTestResult.skipped:
         return f"[yellow]{result}[/yellow]"
     return str(result)
+
+
+def _print_pipeline_panel(p: service.PipelineWithWorkflows) -> None:
+    pipeline, workflows = p.pipeline, p.workflows
+    state = _format_pipeline_state(pipeline.state)
+    commit = get_commit_subject(pipeline)
+    created = _format_relative_time(pipeline.created_at)
+    url = build_pipeline_url(pipeline)
+    commit_hash = (
+        pipeline.vcs.revision[:7]
+        if pipeline.vcs and pipeline.vcs.revision
+        else "unknown"
+    )
+
+    # Sort workflows by created_at
+    sorted_workflows = sorted(workflows, key=lambda w: w.created_at)
+
+    # Build workflows status line
+    workflow_status = ", ".join(
+        f"{escape(w.name)}: {_format_workflow_status(w.status)}"
+        for w in sorted_workflows
+    )
+
+    branch = (
+        escape(pipeline.vcs.branch)
+        if pipeline.vcs and pipeline.vcs.branch
+        else "unknown"
+    )
+    content = f"""[bold]ID:[/bold] {pipeline.id}
+[bold]Number:[/bold] {pipeline.number}
+[bold]Created:[/bold] {created}
+[bold]State:[/bold] {state}
+[bold]Branch:[/bold] {branch}
+[bold]Commit:[/bold] {commit_hash} {escape(commit)}
+[bold]Triggered by:[/bold] {escape(pipeline.trigger.actor.login)}
+[bold]Workflows:[/bold] {workflow_status}
+[bold]Link:[/bold] {_format_link(url)}"""
+
+    if pipeline.errors:
+        error_lines = "\n".join(
+            f"  [red]{escape(e.type)}:[/red] {escape(e.message)}"
+            for e in pipeline.errors
+        )
+        content += f"\n[bold]Errors:[/bold]\n{error_lines}"
+
+    panel = Panel(
+        content,
+        title=f"[bold]Pipeline {pipeline.id}[/bold]",
+        border_style=_get_pipeline_border_style(pipeline.state, workflows),
+    )
+    console.print(panel)

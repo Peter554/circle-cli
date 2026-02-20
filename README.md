@@ -173,7 +173,7 @@ Show test metadata for a job. Useful for identifying which tests failed before v
 **Flags:**
 - `--status`, `-s` - Filter by test result (success, failure/failed, skipped). Can be specified multiple times.
 - `--file`, `-f` - Filter tests by file path suffix
-- `--show-messages`, `-m` - Show failure messages
+- `--include-messages`, `-m` - Show failure messages
 
 ```bash
 # Show all tests for a job
@@ -183,7 +183,7 @@ circle jobs tests 12345
 circle jobs tests 12345 --status failed
 
 # Show failed tests with failure messages
-circle jobs tests 12345 --status failed --show-messages
+circle jobs tests 12345 --status failed --include-messages
 
 # Filter by file
 circle jobs tests 12345 --file test_auth.py
@@ -245,7 +245,7 @@ These flags are available on all commands:
 - `--vcs` - Version control system (`gh` or `bb`)
 - `--org` - Organization name
 - `--repo` - Repository name
-- `--output-format` - Output format (`pretty` or `json`)
+- `--output-format` - Output format (`pretty`)
 - `--no-cache` - Disable caching
 - `--log-level` - Log level (`debug`, `info`, `warning`, `error`, `critical`)
 

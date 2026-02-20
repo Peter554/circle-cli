@@ -4,6 +4,8 @@ from typing import Annotated
 
 import cyclopts
 
+from .output import OutputFormat
+
 
 class VCS(enum.StrEnum):
     github = "gh"
@@ -47,11 +49,6 @@ LogLevelFlag = Annotated[
 ]
 
 DEFAULT_LOG_LEVEL = "warning"
-
-
-class OutputFormat(enum.StrEnum):
-    pretty = "pretty"
-    json = "json"
 
 
 @cyclopts.Parameter(name="*")

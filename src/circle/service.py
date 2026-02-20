@@ -213,7 +213,7 @@ class AppService:
 
     async def get_job_output(
         self, job_number: int, step: int, parallel_index: int | None
-    ) -> api_types.JobOutput:
+    ) -> JobOutput:
         """Get job output."""
         if parallel_index is None:
             job_details = await self.get_job_details(job_number)
@@ -253,7 +253,7 @@ class AppService:
         job_number: int,
         statuses: set[api_types.JobTestResult] | None = None,
         file_suffix: str | None = None,
-    ) -> list[api_types.JobTestMetadata]:
+    ) -> list[JobTestMetadata]:
         """Get test metadata for a job, with optional filtering."""
         tests = self.cache_manager.get_job_tests(job_number)
         if tests is None:
@@ -350,3 +350,7 @@ class StepAction(_BaseModel):
     step_index: int
     step: api_types.V1JobStep
     action: api_types.V1JobAction
+
+
+JobOutput = api_types.JobOutput
+JobTestMetadata = api_types.JobTestMetadata

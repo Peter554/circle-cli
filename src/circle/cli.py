@@ -67,7 +67,8 @@ async def pipelines_list(
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     pipelines = await app_service.get_latest_pipelines(branch, n)
-    output.print_pipelines(pipelines, common_flags.output_format)
+    out = output.get_output(common_flags.output_format)
+    out.print_pipelines(pipelines)
 
 
 @pipelines_app.command(name="details", alias=["detail"])
@@ -85,7 +86,8 @@ async def pipeline_details(
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     result = await app_service.get_pipeline(pipeline_id_or_number)
-    output.print_pipeline_detail(result, common_flags.output_format)
+    out = output.get_output(common_flags.output_format)
+    out.print_pipeline_detail(result)
 
 
 @workflows_app.default
@@ -107,7 +109,8 @@ async def workflows_list(
     workflows_with_jobs = await app_service.get_workflow_jobs(
         pipeline_id_or_number, None
     )
-    output.print_workflows(workflows_with_jobs, common_flags.output_format)
+    out = output.get_output(common_flags.output_format)
+    out.print_workflows(workflows_with_jobs)
 
 
 @jobs_app.default
@@ -145,7 +148,8 @@ async def jobs_list(
     jobs = await app_service.get_workflow_jobs(
         pipeline_id_or_number, workflow_ids, set(statuses) if statuses else None
     )
-    output.print_jobs(jobs, common_flags.output_format)
+    out = output.get_output(common_flags.output_format)
+    out.print_jobs(jobs)
 
 
 @jobs_app.command(name="details", alias=["detail"])
@@ -173,7 +177,8 @@ async def job_details(
     job_details = await app_service.get_job_details(
         job_number, set(step_statuses) if step_statuses else None
     )
-    output.print_job_details(job_details, common_flags.output_format)
+    out = output.get_output(common_flags.output_format)
+    out.print_job_details(job_details)
 
 
 @jobs_app.command(name="output")
@@ -214,7 +219,8 @@ async def job_output(
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     job_output = await app_service.get_job_output(job_number, step, parallel_index)
-    output.print_job_output(job_output, common_flags.output_format, try_extract_summary)
+    out = output.get_output(common_flags.output_format)
+    out.print_job_output(job_output, try_extract_summary)
 
 
 @jobs_app.command(name="tests")
@@ -241,11 +247,11 @@ async def job_tests(
             help="Filter tests by file path suffix.",
         ),
     ] = None,
-    show_messages: Annotated[
+    include_messages: Annotated[
         bool,
         cyclopts.Parameter(
-            name=["--show-messages", "-m"],
-            help="Show failure messages.",
+            name=["--include-messages", "-m"],
+            help="Include failure messages.",
             negative=(),
         ),
     ] = False,
@@ -256,7 +262,8 @@ async def job_tests(
     app_service = _get_app_service(common_flags)
     parsed_statuses = _parse_test_statuses(statuses) if statuses else None
     tests = await app_service.get_job_tests(job_number, parsed_statuses, file)
-    output.print_job_tests(tests, common_flags.output_format, show_messages)
+    out = output.get_output(common_flags.output_format)
+    out.print_job_tests(tests, include_messages)
 
 
 def _parse_test_statuses(statuses: list[str]) -> set[api_types.JobTestResult]:
