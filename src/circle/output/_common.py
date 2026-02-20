@@ -5,23 +5,23 @@ from .. import api_types
 
 def build_pipeline_url(pipeline: api_types.Pipeline) -> str:
     """Build CircleCI pipeline URL."""
-    vcs_provider, org, repo = parse_project_slug(pipeline.project_slug)
+    vcs_provider, org, repo = _parse_project_slug(pipeline.project_slug)
     return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{pipeline.number}"
 
 
 def build_workflow_url(workflow: api_types.Workflow) -> str:
     """Build CircleCI workflow URL."""
-    vcs_provider, org, repo = parse_project_slug(workflow.project_slug)
+    vcs_provider, org, repo = _parse_project_slug(workflow.project_slug)
     return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/{workflow.pipeline_number}/workflows/{workflow.id}"
 
 
 def build_job_url(job: api_types.Job) -> str:
     """Build CircleCI job URL."""
-    vcs_provider, org, repo = parse_project_slug(job.project_slug)
+    vcs_provider, org, repo = _parse_project_slug(job.project_slug)
     return f"https://app.circleci.com/pipelines/{vcs_provider}/{org}/{repo}/jobs/{job.job_number}"
 
 
-def parse_project_slug(project_slug: str) -> tuple[str, str, str]:
+def _parse_project_slug(project_slug: str) -> tuple[str, str, str]:
     """Parse project_slug into (vcs_provider, org, repo)."""
     parts = project_slug.split("/")
     assert len(parts) == 3, f"Invalid project slug: {project_slug}"

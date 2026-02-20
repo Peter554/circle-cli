@@ -245,7 +245,7 @@ These flags are available on all commands:
 - `--vcs` - Version control system (`gh` or `bb`)
 - `--org` - Organization name
 - `--repo` - Repository name
-- `--output-format` - Output format (`pretty`)
+- `--output-format`, `-o` - Output format (`pretty` or `markdown`)
 - `--no-cache` - Disable caching
 - `--log-level` - Log level (`debug`, `info`, `warning`, `error`, `critical`)
 

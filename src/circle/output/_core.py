@@ -6,6 +6,7 @@ from .. import service
 
 class OutputFormat(enum.StrEnum):
     pretty = "pretty"
+    markdown = "markdown"
 
 
 class Output(Protocol):
@@ -39,6 +40,12 @@ class Output(Protocol):
 
 
 def get_output(output_format: OutputFormat) -> Output:
-    from ._pretty import PrettyOutput
+    match output_format:
+        case OutputFormat.pretty:
+            from ._pretty import PrettyOutput
 
-    return PrettyOutput()
+            return PrettyOutput()
+        case OutputFormat.markdown:
+            from ._markdown import MarkdownOutput
+
+            return MarkdownOutput()
