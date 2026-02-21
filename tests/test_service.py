@@ -9,6 +9,8 @@ from circle.service import (
     CURRENT_BRANCH,
     AppError,
     AppService,
+    FailedTest,
+    FailedTestJobInfo,
     PipelineWithWorkflows,
     StepAction,
     WorkflowWithJobs,
@@ -834,3 +836,128 @@ class TestGetJobTests:
         result = await service.get_job_tests(42, file_suffix=".py")
 
         assert result == [py_test]
+
+
+class TestGetWorkflowFailedTests:
+    @pytest.mark.asyncio
+    async def test_collects_failed_tests_across_jobs(self):
+        wf = make_workflow(id="wf-1", pipeline_id="pipe-1", status="failed")
+        job1 = make_job(id="job-1", job_number=10, name="test-a", status="failed")
+        job2 = make_job(id="job-2", job_number=11, name="test-b", status="failed")
+        details1 = make_job_details(number=10)
+        details2 = make_job_details(number=11)
+
+        failure1 = make_job_test(
+            name="test_x",
+            classname="tests.test_foo",
+            file="tests/test_foo.py",
+            result="failure",
+        )
+        failure2 = make_job_test(
+            name="test_y",
+            classname="tests.test_bar",
+            file="tests/test_bar.py",
+            result="failure",
+        )
+        success_test = make_job_test(name="test_z", result="success")
+
+        mock_api = create_autospec(api.APIClient, instance=True)
+        mock_api.get_workflow.return_value = wf
+        mock_api.get_workflow_jobs.return_value = [job1, job2]
+        mock_api.get_job_details.side_effect = lambda slug, num: {
+            10: details1,
+            11: details2,
+        }[num]
+        mock_api.get_job_tests.side_effect = lambda slug, num: {
+            10: [failure1, success_test],
+            11: [failure2],
+        }[num]
+
+        service = make_service(mock_api)
+        result = await service.get_workflow_failed_tests("wf-1")
+
+        assert result.workflow == wf
+        assert result.failed_tests == {
+            FailedTest(
+                file="tests/test_foo.py", classname="tests.test_foo", name="test_x"
+            ): [
+                FailedTestJobInfo(job_number=10, job_name="test-a"),
+            ],
+            FailedTest(
+                file="tests/test_bar.py", classname="tests.test_bar", name="test_y"
+            ): [
+                FailedTestJobInfo(job_number=11, job_name="test-b"),
+            ],
+        }
+
+    @pytest.mark.asyncio
+    async def test_same_test_failing_in_multiple_jobs(self):
+        wf = make_workflow(id="wf-1", pipeline_id="pipe-1", status="failed")
+        job1 = make_job(id="job-1", job_number=10, name="test-a", status="failed")
+        job2 = make_job(id="job-2", job_number=11, name="test-b", status="failed")
+        details1 = make_job_details(number=10)
+        details2 = make_job_details(number=11)
+
+        shared_failure = make_job_test(
+            name="test_x",
+            classname="tests.test_foo",
+            file="tests/test_foo.py",
+            result="failure",
+        )
+
+        mock_api = create_autospec(api.APIClient, instance=True)
+        mock_api.get_workflow.return_value = wf
+        mock_api.get_workflow_jobs.return_value = [job1, job2]
+        mock_api.get_job_details.side_effect = lambda slug, num: {
+            10: details1,
+            11: details2,
+        }[num]
+        mock_api.get_job_tests.side_effect = lambda slug, num: {
+            10: [shared_failure],
+            11: [shared_failure],
+        }[num]
+
+        service = make_service(mock_api)
+        result = await service.get_workflow_failed_tests("wf-1")
+
+        key = FailedTest(
+            file="tests/test_foo.py", classname="tests.test_foo", name="test_x"
+        )
+        assert len(result.failed_tests[key]) == 2
+        assert result.failed_tests[key] == [
+            FailedTestJobInfo(job_number=10, job_name="test-a"),
+            FailedTestJobInfo(job_number=11, job_name="test-b"),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_no_failed_tests(self):
+        wf = make_workflow(id="wf-1", pipeline_id="pipe-1", status="failed")
+        job = make_job(id="job-1", job_number=10, name="test-a", status="failed")
+        details = make_job_details(number=10)
+        success_test = make_job_test(name="test_z", result="success")
+
+        mock_api = create_autospec(api.APIClient, instance=True)
+        mock_api.get_workflow.return_value = wf
+        mock_api.get_workflow_jobs.return_value = [job]
+        mock_api.get_job_details.return_value = details
+        mock_api.get_job_tests.return_value = [success_test]
+
+        service = make_service(mock_api)
+        result = await service.get_workflow_failed_tests("wf-1")
+
+        assert result.workflow == wf
+        assert result.failed_tests == {}
+
+    @pytest.mark.asyncio
+    async def test_no_failed_jobs(self):
+        wf = make_workflow(id="wf-1", pipeline_id="pipe-1", status="failed")
+
+        mock_api = create_autospec(api.APIClient, instance=True)
+        mock_api.get_workflow.return_value = wf
+        mock_api.get_workflow_jobs.return_value = []
+
+        service = make_service(mock_api)
+        result = await service.get_workflow_failed_tests("wf-1")
+
+        assert result.workflow == wf
+        assert result.failed_tests == {}

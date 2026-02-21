@@ -281,7 +281,7 @@ class JobTestResult(enum.StrEnum):
 class JobTestMetadata(_BaseModel):
     name: str
     classname: str
-    file: str
+    file: str | None = None
     result: JobTestResult
     run_time: float
     message: str | None

@@ -7,6 +7,7 @@ from rich.text import Text
 from tabulate import tabulate
 
 from .. import api_types, service, summary
+from ._core import UniqueLevel
 from ._common import (
     build_job_url,
     build_pipeline_url,
@@ -185,7 +186,7 @@ class MarkdownOutput:
             lambda: defaultdict(list)
         )
         for test in tests:
-            by_file[test.file][test.classname].append(test)
+            by_file[test.file or ""][test.classname].append(test)
 
         for file in sorted(by_file.keys()):
             classnames = by_file[file]
@@ -232,6 +233,44 @@ class MarkdownOutput:
                     else:
                         print("(no message)")
                     print()
+
+    def print_workflow_failed_tests(
+        self,
+        workflow_failed_tests: service.WorkflowFailedTests,
+        unique: UniqueLevel | None,
+    ) -> None:
+        workflow = workflow_failed_tests.workflow
+        failed_tests = workflow_failed_tests.failed_tests
+
+        if not failed_tests:
+            print("No failed tests found")
+            return
+
+        url = build_workflow_url(workflow)
+
+        print(f"\n## Workflow: {workflow.name} ({workflow.id})")
+        print(f"- **Status:** {workflow.status}")
+        print(f"- **Failed tests:** {len(failed_tests)}")
+        print(f"- **Link:** {url}")
+        print()
+
+        if unique is not None:
+            grouped = _group_failed_tests(failed_tests, unique)
+            for key, job_infos in grouped.items():
+                jobs_str = _format_failed_test_jobs(job_infos)
+                print(f"- **File:** {key[0] or ''}")
+                if unique == UniqueLevel.classname:
+                    print(f"- **Classname:** {key[1]}")
+                print(f"- **Jobs:** {jobs_str}")
+                print()
+        else:
+            for test, job_infos in failed_tests.items():
+                jobs_str = _format_failed_test_jobs(job_infos)
+                print(f"- **File:** {test.file or ''}")
+                print(f"- **Classname:** {test.classname}")
+                print(f"- **Test:** {test.name}")
+                print(f"- **Jobs:** {jobs_str}")
+                print()
 
     def print_job_output(
         self,
@@ -348,6 +387,35 @@ def _job_summary(counts: dict[api_types.JobStatus, int]) -> str:
         parts.append(f"{other} other")
 
     return ", ".join(parts)
+
+
+def _format_failed_test_jobs(
+    job_infos: list[service.FailedTestJobInfo],
+) -> str:
+    return ", ".join(
+        f"{ji.job_name} (#{ji.job_number})" if ji.job_number else ji.job_name
+        for ji in job_infos
+    )
+
+
+def _group_failed_tests(
+    failed_tests: dict[service.FailedTest, list[service.FailedTestJobInfo]],
+    unique: UniqueLevel,
+) -> dict[tuple[str | None, str], list[service.FailedTestJobInfo]]:
+    grouped: dict[tuple[str | None, str], list[service.FailedTestJobInfo]] = {}
+    for test, job_infos in failed_tests.items():
+        if unique == UniqueLevel.file:
+            key = (test.file, "")
+        else:
+            key = (test.file, test.classname)
+        if key not in grouped:
+            grouped[key] = []
+        seen = {(ji.job_number, ji.job_name) for ji in grouped[key]}
+        for ji in job_infos:
+            if (ji.job_number, ji.job_name) not in seen:
+                grouped[key].append(ji)
+                seen.add((ji.job_number, ji.job_name))
+    return grouped
 
 
 def _parallel_run_duration(actions: list[api_types.V1JobAction]) -> str:

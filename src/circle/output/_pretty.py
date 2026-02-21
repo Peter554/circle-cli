@@ -11,6 +11,7 @@ from rich.table import Table
 from rich.text import Text
 
 from .. import api_types, service, summary
+from ._core import UniqueLevel
 from ._common import (
     build_job_url,
     build_pipeline_url,
@@ -241,7 +242,7 @@ class PrettyOutput:
             lambda: defaultdict(list)
         )
         for test in tests:
-            by_file[test.file][test.classname].append(test)
+            by_file[test.file or ""][test.classname].append(test)
 
         # Create a panel for each file
         for file in sorted(by_file.keys()):
@@ -288,6 +289,66 @@ class PrettyOutput:
 
             panel = Panel(Group(*renderables))
             console.print(panel)
+
+    def print_workflow_failed_tests(
+        self,
+        workflow_failed_tests: service.WorkflowFailedTests,
+        unique: UniqueLevel | None,
+    ) -> None:
+        workflow = workflow_failed_tests.workflow
+        failed_tests = workflow_failed_tests.failed_tests
+
+        if not failed_tests:
+            console.print("No failed tests found")
+            return
+
+        url = build_workflow_url(workflow)
+        status = _format_workflow_status(workflow.status)
+
+        renderables: list[Text] = [
+            Text.from_markup(
+                f"[bold]Workflow:[/bold] {escape(workflow.name)} ({workflow.id})"
+            ),
+            Text.from_markup(f"[bold]Status:[/bold] {status}"),
+            Text.from_markup(f"[bold]Failed tests:[/bold] {len(failed_tests)}"),
+            Text.from_markup(f"[bold]Link:[/bold] {_format_link(url)}"),
+        ]
+
+        if unique is not None:
+            grouped = _group_failed_tests(failed_tests, unique)
+            for key, job_infos in grouped.items():
+                jobs_str = _format_failed_test_jobs(job_infos)
+                renderables.append(Text())
+                renderables.append(
+                    Text.from_markup(f"[bold]File:[/bold] {escape(key[0] or '')}")
+                )
+                if unique == UniqueLevel.classname:
+                    renderables.append(
+                        Text.from_markup(f"[bold]Classname:[/bold] {escape(key[1])}")
+                    )
+                renderables.append(Text.from_markup(f"[bold]Jobs:[/bold] {jobs_str}"))
+        else:
+            for test, job_infos in failed_tests.items():
+                jobs_str = _format_failed_test_jobs(job_infos)
+                renderables.append(Text())
+                renderables.append(
+                    Text.from_markup(f"[bold]File:[/bold] {escape(test.file or '')}")
+                )
+                renderables.append(
+                    Text.from_markup(
+                        f"[bold]Classname:[/bold] {escape(test.classname)}"
+                    )
+                )
+                renderables.append(
+                    Text.from_markup(f"[bold]Test:[/bold] {escape(test.name)}")
+                )
+                renderables.append(Text.from_markup(f"[bold]Jobs:[/bold] {jobs_str}"))
+
+        panel = Panel(
+            Group(*renderables),
+            border_style=_get_workflow_border_style(workflow.status),
+        )
+        console.print(panel)
 
     def print_job_output(
         self,
@@ -535,6 +596,37 @@ def _format_test_result(result: api_types.JobTestResult) -> str:
     elif result == api_types.JobTestResult.skipped:
         return f"[yellow]{result}[/yellow]"
     return str(result)
+
+
+def _format_failed_test_jobs(
+    job_infos: list[service.FailedTestJobInfo],
+) -> str:
+    return ", ".join(
+        f"{escape(ji.job_name)} (#{ji.job_number})"
+        if ji.job_number
+        else escape(ji.job_name)
+        for ji in job_infos
+    )
+
+
+def _group_failed_tests(
+    failed_tests: dict[service.FailedTest, list[service.FailedTestJobInfo]],
+    unique: UniqueLevel,
+) -> dict[tuple[str | None, str], list[service.FailedTestJobInfo]]:
+    grouped: dict[tuple[str | None, str], list[service.FailedTestJobInfo]] = {}
+    for test, job_infos in failed_tests.items():
+        if unique == UniqueLevel.file:
+            key = (test.file, "")
+        else:
+            key = (test.file, test.classname)
+        if key not in grouped:
+            grouped[key] = []
+        seen = {(ji.job_number, ji.job_name) for ji in grouped[key]}
+        for ji in job_infos:
+            if (ji.job_number, ji.job_name) not in seen:
+                grouped[key].append(ji)
+                seen.add((ji.job_number, ji.job_name))
+    return grouped
 
 
 def _print_pipeline_panel(p: service.PipelineWithWorkflows) -> None:

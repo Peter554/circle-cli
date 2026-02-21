@@ -119,6 +119,24 @@ circle workflows --pipeline abc123
 circle workflows --pipeline 123
 ```
 
+#### failed-tests
+
+Show unique failed tests across all jobs in a workflow.
+
+**Flags:**
+- `--unique`, `-u` - Show unique files or classnames instead of individual tests (`file` or `classname`)
+
+```bash
+# Show all failed tests for a workflow
+circle workflows failed-tests <workflow-id>
+
+# Show only unique failing files
+circle workflows failed-tests <workflow-id> --unique file
+
+# Show only unique failing classnames (file + classname)
+circle workflows failed-tests <workflow-id> --unique classname
+```
+
 ### jobs
 
 **Aliases:** `job`, `j`

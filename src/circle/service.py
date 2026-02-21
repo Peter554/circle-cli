@@ -265,9 +265,47 @@ class AppService:
             tests = [t for t in tests if t.result in statuses]
 
         if file_suffix is not None:
-            tests = [t for t in tests if t.file.endswith(file_suffix)]
+            tests = [
+                t for t in tests if t.file is not None and t.file.endswith(file_suffix)
+            ]
 
         return tests
+
+    async def get_workflow_failed_tests(self, workflow_id: str) -> WorkflowFailedTests:
+        workflows_with_jobs = await self.get_workflow_jobs(
+            None, [workflow_id], statuses={api_types.JobStatus.failed}
+        )
+        workflow_with_jobs = workflows_with_jobs[0]
+
+        # Fetch tests for all failed jobs concurrently
+        failed_jobs = [j for j in workflow_with_jobs.jobs if j.job_number is not None]
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(self.get_job_tests(j.job_number))  # type: ignore[arg-type]
+                for j in failed_jobs
+            ]
+        tests_lists = [task.result() for task in tasks]
+
+        # Group failed tests across jobs
+        failed_tests: dict[FailedTest, list[FailedTestJobInfo]] = defaultdict(list)
+        for job, tests in zip(failed_jobs, tests_lists, strict=True):
+            for test in tests:
+                if test.result != api_types.JobTestResult.failure:
+                    continue
+                key = FailedTest(
+                    file=test.file, classname=test.classname, name=test.name
+                )
+                failed_tests[key].append(
+                    FailedTestJobInfo(
+                        job_number=job.job_number,
+                        job_name=job.name,
+                    )
+                )
+
+        return WorkflowFailedTests(
+            workflow=workflow_with_jobs.workflow,
+            failed_tests=dict(failed_tests),
+        )
 
     @staticmethod
     def _get_branch(branch: str) -> str:
@@ -350,6 +388,22 @@ class StepAction(_BaseModel):
     step_index: int
     step: api_types.V1JobStep
     action: api_types.V1JobAction
+
+
+class WorkflowFailedTests(_BaseModel):
+    workflow: api_types.Workflow
+    failed_tests: dict[FailedTest, list[FailedTestJobInfo]]
+
+
+class FailedTest(_BaseModel):
+    file: str | None
+    classname: str
+    name: str
+
+
+class FailedTestJobInfo(_BaseModel):
+    job_number: int | None
+    job_name: str
 
 
 JobOutput = api_types.JobOutput

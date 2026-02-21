@@ -9,6 +9,11 @@ class OutputFormat(enum.StrEnum):
     markdown = "markdown"
 
 
+class UniqueLevel(enum.StrEnum):
+    file = "file"
+    classname = "classname"
+
+
 class Output(Protocol):
     def print_pipelines(
         self, pipelines: list[service.PipelineWithWorkflows]
@@ -30,6 +35,12 @@ class Output(Protocol):
         self,
         tests: list[service.JobTestMetadata],
         include_messages: bool,
+    ) -> None: ...
+
+    def print_workflow_failed_tests(
+        self,
+        workflow_failed_tests: service.WorkflowFailedTests,
+        unique: UniqueLevel | None,
     ) -> None: ...
 
     def print_job_output(
