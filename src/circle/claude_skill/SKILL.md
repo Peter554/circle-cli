@@ -40,12 +40,12 @@ circle jobs output -o markdown <job-number> --step <n> --parallel-index <i>    #
 **IMPORTANT: Conserve tokens by using targeted commands. Filter for failures.**
 
 1. `circle pipelines list` or `circle pipelines details <id-or-number>` - find the failing pipeline
-2. `circle workflows failed-tests <workflow-id>` - see all failed tests across the workflow (low token cost)
-3. `circle jobs list --pipeline <id-or-number> --status failed` - find failed jobs
+2. `circle jobs list --pipeline <id-or-number> --status failed` - find failed jobs
+3. `circle workflows failed-tests <workflow-id>` - overview of all failed tests across a workflow (but remember other jobs e.g. linting might also have failed)
 4. `circle jobs details <job-number> --step-status failed` - find failed steps
 5. `circle jobs tests <job-number> --status failed` - identify which tests failed in a specific job
 6. `circle jobs tests <job-number> --status failed -m` - view failure messages (often sufficient to diagnose)
-7. `circle jobs output <job-number> --step <n> --try-extract-summary` - only if more context needed (high token cost)
+7. `circle jobs output <job-number> --step <n> --try-extract-summary` - only if more context needed (higher token cost)
 8. `circle jobs output <job-number> --step <n>` - last resort
 
 **Key principle:** Use `jobs tests --status failed` before `jobs output`. Test metadata is compact; full output is expensive. The failure messages (`-m`) often contain enough information to diagnose the issue.
