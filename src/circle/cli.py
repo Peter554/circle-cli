@@ -17,6 +17,7 @@ from . import (
     flags,
     output,
     service,
+    status_filter,
 )
 
 error_console = Console(stderr=True)
@@ -159,10 +160,10 @@ async def jobs_list(
         ),
     ] = None,
     statuses: Annotated[
-        list[api_types.JobStatus] | None,
+        list[str] | None,
         cyclopts.Parameter(
             name=["--status", "-s"],
-            help="Filter jobs by status. Can be specified multiple times.",
+            help="Filter jobs by status. Prefix with not: to exclude. Can be specified multiple times.",
             negative=(),
         ),
     ] = None,
@@ -171,8 +172,13 @@ async def jobs_list(
     """Show jobs for workflows"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
+    parsed_statuses = (
+        status_filter.parse_enum_statuses(statuses, api_types.JobStatus)
+        if statuses
+        else None
+    )
     jobs = await app_service.get_workflow_jobs(
-        pipeline_id_or_number, workflow_ids, set(statuses) if statuses else None
+        pipeline_id_or_number, workflow_ids, parsed_statuses
     )
     out = output.get_output(common_flags.output_format)
     out.print_jobs(jobs)
@@ -191,7 +197,7 @@ async def job_details(
         list[str] | None,
         cyclopts.Parameter(
             name=["--step-status", "-s"],
-            help="Filter steps by status. Can be specified multiple times.",
+            help="Filter steps by status. Prefix with not: to exclude. Can be specified multiple times.",
             negative=(),
         ),
     ] = None,
@@ -200,9 +206,10 @@ async def job_details(
     """Show job details"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    job_details = await app_service.get_job_details(
-        job_number, set(step_statuses) if step_statuses else None
+    parsed_step_statuses = (
+        status_filter.parse_str_statuses(step_statuses) if step_statuses else None
     )
+    job_details = await app_service.get_job_details(job_number, parsed_step_statuses)
     out = output.get_output(common_flags.output_format)
     out.print_job_details(job_details)
 
@@ -262,7 +269,7 @@ async def job_tests(
         list[str] | None,
         cyclopts.Parameter(
             name=["--status", "-s"],
-            help="Filter tests by result status (success, failure/failed, skipped). Can be specified multiple times.",
+            help="Filter tests by result status (success, failure/failed, skipped). Prefix with not: to exclude. Can be specified multiple times.",
             negative=(),
         ),
     ] = None,
@@ -286,20 +293,18 @@ async def job_tests(
     """Show test metadata for a job"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    parsed_statuses = _parse_test_statuses(statuses) if statuses else None
+    parsed_statuses = (
+        status_filter.parse_enum_statuses(
+            statuses,
+            api_types.JobTestResult,
+            aliases={"failed": "failure"},
+        )
+        if statuses
+        else None
+    )
     tests = await app_service.get_job_tests(job_number, parsed_statuses, file)
     out = output.get_output(common_flags.output_format)
     out.print_job_tests(tests, include_messages)
-
-
-def _parse_test_statuses(statuses: list[str]) -> set[api_types.JobTestResult]:
-    result = set()
-    for s in statuses:
-        if s == "failed":
-            result.add(api_types.JobTestResult.failure)
-        else:
-            result.add(api_types.JobTestResult(s))
-    return result
 
 
 @cache_app.command(name="size")

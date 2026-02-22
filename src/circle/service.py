@@ -4,7 +4,7 @@ import asyncio
 import dataclasses
 import typing
 from collections import Counter, defaultdict
-from collections.abc import Set
+from collections.abc import Container
 
 import pydantic
 
@@ -123,7 +123,7 @@ class AppService:
         self,
         pipeline_id_or_number: str | None,
         workflow_ids: list[str] | None,
-        statuses: Set[api_types.JobStatus] | None = None,
+        statuses: Container[api_types.JobStatus] | None = None,
     ) -> list[WorkflowWithJobs]:
         # If workflow IDs are provided use those. If pipeline ID was provided validate it against the workflows.
         # If no workflow IDs are, use workflows for the pipeline ID or latest pipeline for the current branch.
@@ -178,7 +178,7 @@ class AppService:
         ]
 
     async def get_job_details(
-        self, job_number: int, step_statuses: set[str] | None = None
+        self, job_number: int, step_statuses: Container[str] | None = None
     ) -> JobDetailsWithSteps:
         # Fetch both details concurrently
         async with asyncio.TaskGroup() as tg:
@@ -251,7 +251,7 @@ class AppService:
     async def get_job_tests(
         self,
         job_number: int,
-        statuses: set[api_types.JobTestResult] | None = None,
+        statuses: Container[api_types.JobTestResult] | None = None,
         file_suffix: str | None = None,
     ) -> list[JobTestMetadata]:
         """Get test metadata for a job, with optional filtering."""

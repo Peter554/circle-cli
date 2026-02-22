@@ -148,7 +148,7 @@ Show jobs for workflows.
 **Flags:**
 - `--pipeline`, `-p` - Pipeline ID or number (defaults to latest pipeline for current branch)
 - `--workflow`, `-w` - Filter by workflow ID (can be specified multiple times)
-- `--status`, `-s` - Filter by job status (can be specified multiple times)
+- `--status`, `-s` - Filter by job status (can be specified multiple times). Prefix with `not:` to exclude a status.
 
 ```bash
 # These are all equivalent
@@ -159,9 +159,11 @@ circle j
 # Show only failed jobs
 circle jobs --status failed
 
+# Show all jobs except successful ones
+circle jobs --status not:success
+
 # Filter by pipeline
 circle jobs --pipeline abc123
-
 
 # Filter by workflow
 circle jobs --workflow abc123 --workflow def456
@@ -174,7 +176,7 @@ Show detailed information about a job, including its steps.
 **Aliases:** `detail`
 
 **Flags:**
-- `--step-status`, `-s` - Filter steps by status (can be specified multiple times)
+- `--step-status`, `-s` - Filter steps by status (can be specified multiple times). Prefix with `not:` to exclude a status.
 
 ```bash
 # Show job details
@@ -182,6 +184,9 @@ circle jobs details 12345
 
 # Show only failed steps
 circle jobs details 12345 --step-status failed
+
+# Show all steps except successful ones
+circle jobs details 12345 --step-status not:success
 ```
 
 #### tests
@@ -189,7 +194,7 @@ circle jobs details 12345 --step-status failed
 Show test metadata for a job. Useful for identifying which tests failed before viewing full output.
 
 **Flags:**
-- `--status`, `-s` - Filter by test result (success, failure/failed, skipped). Can be specified multiple times.
+- `--status`, `-s` - Filter by test result (success, failure/failed, skipped). Can be specified multiple times. Prefix with `not:` to exclude a status.
 - `--file`, `-f` - Filter tests by file path suffix
 - `--include-messages`, `-m` - Show failure messages
 
@@ -199,6 +204,9 @@ circle jobs tests 12345
 
 # Show only failed tests
 circle jobs tests 12345 --status failed
+
+# Show non-successful tests (failed + skipped)
+circle jobs tests 12345 --status not:success
 
 # Show failed tests with failure messages
 circle jobs tests 12345 --status failed --include-messages

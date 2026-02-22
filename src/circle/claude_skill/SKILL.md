@@ -23,12 +23,14 @@ circle workflows failed-tests -o markdown <workflow-id> --unique classname     #
 
 circle jobs list -o markdown --pipeline <id-or-number>                         # All jobs for a pipeline
 circle jobs list -o markdown --pipeline <id-or-number> --status failed         # Only failed jobs
+circle jobs list -o markdown --pipeline <id-or-number> --status not:success    # All non-successful jobs
 
 circle jobs details -o markdown <job-number>                         # Job steps
 circle jobs details -o markdown <job-number> --step-status failed    # Only failed steps
 
 circle jobs tests -o markdown <job-number> --status failed           # Failed tests (use BEFORE output!)
 circle jobs tests -o markdown <job-number> --status failed -m        # Failed tests with messages
+circle jobs tests -o markdown <job-number> --status not:success      # All non-successful tests
 
 circle jobs output -o markdown <job-number> --step <n>               # Step output (expensive, use last)
 circle jobs output -o markdown <job-number> --step <n> --try-extract-summary   # Extract test summary
@@ -40,11 +42,11 @@ circle jobs output -o markdown <job-number> --step <n> --parallel-index <i>    #
 **IMPORTANT: Conserve tokens by using targeted commands. Filter for failures.**
 
 1. `circle pipelines list` or `circle pipelines details <id-or-number>` - find the failing pipeline
-2. `circle jobs list --pipeline <id-or-number> --status failed` - find failed jobs
+2. `circle jobs list --pipeline <id-or-number> --status not:success` - find failed jobs
 3. `circle workflows failed-tests <workflow-id>` - overview of all failed tests across a workflow (but remember other jobs e.g. linting might also have failed)
-4. `circle jobs details <job-number> --step-status failed` - find failed steps
-5. `circle jobs tests <job-number> --status failed` - identify which tests failed in a specific job
-6. `circle jobs tests <job-number> --status failed -m` - view failure messages (often sufficient to diagnose)
+4. `circle jobs details <job-number> --step-status not:success` - find failed steps
+5. `circle jobs tests <job-number> --status not:success` - identify which tests failed in a specific job
+6. `circle jobs tests <job-number> --status not:success -m` - view failure messages (often sufficient to diagnose)
 7. `circle jobs output <job-number> --step <n> --try-extract-summary` - only if more context needed (higher token cost)
 8. `circle jobs output <job-number> --step <n>` - last resort
 
