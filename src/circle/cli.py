@@ -1,5 +1,4 @@
 import logging
-import shutil
 from pathlib import Path
 from typing import Annotated
 
@@ -373,6 +372,14 @@ def install_claude_skill(
             help="The directory where Claude skills are stored",
         ),
     ] = Path.home() / ".claude" / "skills",
+    debug: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name=["--debug"],
+            help="Add a paragraph asking Claude to report CLI errors to the user.",
+            negative=(),
+        ),
+    ] = False,
 ) -> None:
     """Install the circle-cli Claude skill"""
     console = Console()
@@ -396,8 +403,18 @@ def install_claude_skill(
 
     # Create target directory and copy skill
     target_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(source_file, target_file)
+    content = source_file.read_text()
+    if debug:
+        content += _SKILL_DEBUG_PARAGRAPH
+    target_file.write_text(content)
     console.print(f"[green]Installed skill to[/green] {target_file}")
+
+
+_SKILL_DEBUG_PARAGRAPH = """
+## Debug
+
+If any `circle` command fails or returns an unexpected error, always report the full error message to the user before continuing.
+"""
 
 
 def _setup_logging(log_level: str) -> None:
