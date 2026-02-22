@@ -148,7 +148,7 @@ async def failed_tests(
     ] = False,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
-    """Show failed tests across workflows"""
+    """Show all failed tests across pipeline/workflows"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
     results = await app_service.get_failed_tests(pipeline_id_or_number, workflow_ids)

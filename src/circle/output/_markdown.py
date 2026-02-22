@@ -242,59 +242,73 @@ class MarkdownOutput:
         unique: UniqueLevel | None,
         include_jobs: bool,
     ) -> None:
-        for workflow_failed_tests in results:
-            workflow = workflow_failed_tests.workflow
-            failed_tests = workflow_failed_tests.failed_tests
-            url = build_workflow_url(workflow)
+        # Group by pipeline, sorted by created_at within each pipeline
+        by_pipeline: dict[str, list[service.WorkflowFailedTests]] = defaultdict(list)
+        for r in results:
+            by_pipeline[r.workflow.pipeline_id].append(r)
 
-            print(f"\n## Workflow: {workflow.name} ({workflow.id})")
-            print(f"- **Status:** {workflow.status}")
-            total = sum(
-                1
-                for by_cls in failed_tests.values()
-                for by_name in by_cls.values()
-                for _name in by_name
-            )
-            print(f"- **Failed tests:** {total}")
-            print(f"- **Link:** {url}")
-            print()
+        for pipeline_id, pipeline_results in by_pipeline.items():
+            print(f"\n# Pipeline: {pipeline_id}")
 
-            if not failed_tests:
-                print("No failed tests found")
+            for workflow_failed_tests in sorted(
+                pipeline_results, key=lambda r: r.workflow.created_at
+            ):
+                workflow = workflow_failed_tests.workflow
+                failed_tests = workflow_failed_tests.failed_tests
+                url = build_workflow_url(workflow)
+
+                print(f"\n## Workflow: {workflow.name} ({workflow.id})")
+                print(f"- **Status:** {workflow.status}")
+                total = sum(
+                    1
+                    for by_cls in failed_tests.values()
+                    for by_name in by_cls.values()
+                    for _name in by_name
+                )
+                print(f"- **Failed tests:** {total}")
+                print(f"- **Link:** {url}")
                 print()
-                continue
 
-            for file, by_classname in failed_tests.items():
-                if unique == UniqueLevel.file:
-                    file_count = sum(len(names) for names in by_classname.values())
-                    print(f"- {file or '(no file)'} [{file_count} fails]")
-                    if include_jobs:
-                        all_jobs = collect_unique_jobs(
-                            ji
-                            for by_name in by_classname.values()
-                            for infos in by_name.values()
-                            for ji in infos
-                        )
-                        print(f"  - Jobs: {format_failed_test_jobs(all_jobs)}")
+                if not failed_tests:
+                    print("No failed tests found")
+                    print()
                     continue
 
-                file_count = sum(len(names) for names in by_classname.values())
-                print(f"- {file or '(no file)'} [{file_count} fails]")
-                for classname, by_name in by_classname.items():
-                    if unique == UniqueLevel.classname:
-                        print(f"  - {classname} [{len(by_name)} fails]")
+                for file, by_classname in failed_tests.items():
+                    if unique == UniqueLevel.file:
+                        file_count = sum(len(names) for names in by_classname.values())
+                        print(f"- {file or '(no file)'} [{file_count} fails]")
                         if include_jobs:
                             all_jobs = collect_unique_jobs(
-                                ji for infos in by_name.values() for ji in infos
+                                ji
+                                for by_name in by_classname.values()
+                                for infos in by_name.values()
+                                for ji in infos
                             )
-                            print(f"    - Jobs: {format_failed_test_jobs(all_jobs)}")
+                            print(f"  - Jobs: {format_failed_test_jobs(all_jobs)}")
                         continue
 
-                    print(f"  - {classname} [{len(by_name)} fails]")
-                    for name, job_infos in by_name.items():
-                        print(f"    - {name}")
-                        if include_jobs:
-                            print(f"      - Jobs: {format_failed_test_jobs(job_infos)}")
+                    file_count = sum(len(names) for names in by_classname.values())
+                    print(f"- {file or '(no file)'} [{file_count} fails]")
+                    for classname, by_name in by_classname.items():
+                        if unique == UniqueLevel.classname:
+                            print(f"  - {classname} [{len(by_name)} fails]")
+                            if include_jobs:
+                                all_jobs = collect_unique_jobs(
+                                    ji for infos in by_name.values() for ji in infos
+                                )
+                                print(
+                                    f"    - Jobs: {format_failed_test_jobs(all_jobs)}"
+                                )
+                            continue
+
+                        print(f"  - {classname} [{len(by_name)} fails]")
+                        for name, job_infos in by_name.items():
+                            print(f"    - {name}")
+                            if include_jobs:
+                                print(
+                                    f"      - Jobs: {format_failed_test_jobs(job_infos)}"
+                                )
 
     def print_job_output(
         self,

@@ -298,32 +298,61 @@ class PrettyOutput:
         unique: UniqueLevel | None,
         include_jobs: bool,
     ) -> None:
-        for workflow_failed_tests in results:
-            workflow = workflow_failed_tests.workflow
-            failed_tests = workflow_failed_tests.failed_tests
-            url = build_workflow_url(workflow)
-            status = _format_workflow_status(workflow.status)
+        # Group by pipeline, sorted by created_at within each pipeline
+        by_pipeline: dict[str, list[service.WorkflowFailedTests]] = defaultdict(list)
+        for r in results:
+            by_pipeline[r.workflow.pipeline_id].append(r)
 
-            total = sum(
-                1
-                for by_cls in failed_tests.values()
-                for by_name in by_cls.values()
-                for _name in by_name
-            )
+        for pipeline_id, pipeline_results in by_pipeline.items():
+            console.print(f"\n[bold]Pipeline:[/bold] {pipeline_id}\n")
 
-            renderables: list[Text] = [
-                Text.from_markup(
-                    f"[bold]Workflow:[/bold] {escape(workflow.name)} ({workflow.id})"
-                ),
-                Text.from_markup(f"[bold]Status:[/bold] {status}"),
-                Text.from_markup(f"[bold]Failed tests:[/bold] {total}"),
-                Text.from_markup(f"[bold]Link:[/bold] {_format_link(url)}"),
-            ]
+            for workflow_failed_tests in sorted(
+                pipeline_results, key=lambda r: r.workflow.created_at
+            ):
+                workflow = workflow_failed_tests.workflow
+                failed_tests = workflow_failed_tests.failed_tests
+                url = build_workflow_url(workflow)
+                status = _format_workflow_status(workflow.status)
 
-            for file, by_classname in failed_tests.items():
-                file_label = escape(file or "(no file)")
+                total = sum(
+                    1
+                    for by_cls in failed_tests.values()
+                    for by_name in by_cls.values()
+                    for _name in by_name
+                )
 
-                if unique == UniqueLevel.file:
+                renderables: list[Text] = [
+                    Text.from_markup(
+                        f"[bold]Workflow:[/bold] {escape(workflow.name)} ({workflow.id})"
+                    ),
+                    Text.from_markup(f"[bold]Status:[/bold] {status}"),
+                    Text.from_markup(f"[bold]Failed tests:[/bold] {total}"),
+                    Text.from_markup(f"[bold]Link:[/bold] {_format_link(url)}"),
+                ]
+
+                for file, by_classname in failed_tests.items():
+                    file_label = escape(file or "(no file)")
+
+                    if unique == UniqueLevel.file:
+                        file_count = sum(len(names) for names in by_classname.values())
+                        renderables.append(Text())
+                        renderables.append(
+                            Text.from_markup(
+                                f"[bold]{file_label}[/bold] [dim][{file_count} fails][/dim]"
+                            )
+                        )
+                        if include_jobs:
+                            all_jobs = collect_unique_jobs(
+                                ji
+                                for by_name in by_classname.values()
+                                for infos in by_name.values()
+                                for ji in infos
+                            )
+                            renderables.append(
+                                Text(f"  Jobs: {format_failed_test_jobs(all_jobs)}")
+                            )
+                        continue
+
                     file_count = sum(len(names) for names in by_classname.values())
                     renderables.append(Text())
                     renderables.append(
@@ -331,61 +360,44 @@ class PrettyOutput:
                             f"[bold]{file_label}[/bold] [dim][{file_count} fails][/dim]"
                         )
                     )
-                    if include_jobs:
-                        all_jobs = collect_unique_jobs(
-                            ji
-                            for by_name in by_classname.values()
-                            for infos in by_name.values()
-                            for ji in infos
-                        )
-                        renderables.append(
-                            Text(f"  Jobs: {format_failed_test_jobs(all_jobs)}")
-                        )
-                    continue
 
-                file_count = sum(len(names) for names in by_classname.values())
-                renderables.append(Text())
-                renderables.append(
-                    Text.from_markup(
-                        f"[bold]{file_label}[/bold] [dim][{file_count} fails][/dim]"
-                    )
-                )
+                    for classname, by_name in by_classname.items():
+                        if unique == UniqueLevel.classname:
+                            renderables.append(
+                                Text.from_markup(
+                                    f"  {escape(classname)} [dim][{len(by_name)} fails][/dim]"
+                                )
+                            )
+                            if include_jobs:
+                                all_jobs = collect_unique_jobs(
+                                    ji for infos in by_name.values() for ji in infos
+                                )
+                                renderables.append(
+                                    Text(
+                                        f"    Jobs: {format_failed_test_jobs(all_jobs)}"
+                                    )
+                                )
+                            continue
 
-                for classname, by_name in by_classname.items():
-                    if unique == UniqueLevel.classname:
                         renderables.append(
                             Text.from_markup(
                                 f"  {escape(classname)} [dim][{len(by_name)} fails][/dim]"
                             )
                         )
-                        if include_jobs:
-                            all_jobs = collect_unique_jobs(
-                                ji for infos in by_name.values() for ji in infos
-                            )
-                            renderables.append(
-                                Text(f"    Jobs: {format_failed_test_jobs(all_jobs)}")
-                            )
-                        continue
-
-                    renderables.append(
-                        Text.from_markup(
-                            f"  {escape(classname)} [dim][{len(by_name)} fails][/dim]"
-                        )
-                    )
-                    for name, job_infos in by_name.items():
-                        renderables.append(Text(f"    {name}"))
-                        if include_jobs:
-                            renderables.append(
-                                Text(
-                                    f"      Jobs: {format_failed_test_jobs(job_infos)}"
+                        for name, job_infos in by_name.items():
+                            renderables.append(Text(f"    {name}"))
+                            if include_jobs:
+                                renderables.append(
+                                    Text(
+                                        f"      Jobs: {format_failed_test_jobs(job_infos)}"
+                                    )
                                 )
-                            )
 
-            panel = Panel(
-                Group(*renderables),
-                border_style=_get_workflow_border_style(workflow.status),
-            )
-            console.print(panel)
+                panel = Panel(
+                    Group(*renderables),
+                    border_style=_get_workflow_border_style(workflow.status),
+                )
+                console.print(panel)
 
     def print_job_output(
         self,
