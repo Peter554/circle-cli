@@ -17,10 +17,6 @@ circle pipelines details -o markdown <id-or-number>                  # Pipeline 
 
 circle workflows list -o markdown --pipeline <id-or-number>                    # Workflows for a pipeline
 
-circle workflows failed-tests -o markdown <workflow-id>                        # Failed tests across all jobs
-circle workflows failed-tests -o markdown <workflow-id> --unique file          # Unique failing files
-circle workflows failed-tests -o markdown <workflow-id> --unique classname     # Unique failing classnames
-
 circle jobs list -o markdown --pipeline <id-or-number>                         # All jobs for a pipeline
 circle jobs list -o markdown --pipeline <id-or-number> --status failed         # Only failed jobs
 circle jobs list -o markdown --pipeline <id-or-number> --status not:success    # All non-successful jobs
@@ -35,6 +31,13 @@ circle jobs tests -o markdown <job-number> --status not:success      # All non-s
 circle jobs output -o markdown <job-number> --step <n>               # Step output (expensive, use last)
 circle jobs output -o markdown <job-number> --step <n> --try-extract-summary   # Extract test summary
 circle jobs output -o markdown <job-number> --step <n> --parallel-index <i>    # Parallel run output
+
+circle failed-tests -o markdown                                               # Failed tests for latest pipeline
+circle failed-tests -o markdown --pipeline <id-or-number>                      # Failed tests for a pipeline
+circle failed-tests -o markdown --workflow <workflow-id>                        # Failed tests for specific workflow(s)
+circle failed-tests -o markdown --unique file                                  # Unique failing files
+circle failed-tests -o markdown --unique classname                             # Unique failing classnames
+circle failed-tests -o markdown --include-jobs                                 # Include which jobs each test failed in
 ```
 
 ## Investigating failures
@@ -43,7 +46,7 @@ circle jobs output -o markdown <job-number> --step <n> --parallel-index <i>    #
 
 1. `circle pipelines list` or `circle pipelines details <id-or-number>` - find the failing pipeline
 2. `circle jobs list --pipeline <id-or-number> --status not:success` - find failed jobs
-3. `circle workflows failed-tests <workflow-id>` - overview of all failed tests across a workflow (but remember other jobs e.g. linting might also have failed)
+3. `circle failed-tests` or `circle failed-tests --pipeline <id-or-number>` - overview of all failed tests across workflows (but remember other jobs e.g. linting might also have failed)
 4. `circle jobs details <job-number> --step-status not:success` - find failed steps
 5. `circle jobs tests <job-number> --status not:success` - identify which tests failed in a specific job
 6. `circle jobs tests <job-number> --status not:success -m` - view failure messages (often sufficient to diagnose)

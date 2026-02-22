@@ -119,28 +119,6 @@ circle workflows --pipeline abc123
 circle workflows --pipeline 123
 ```
 
-#### failed-tests
-
-Show unique failed tests across all jobs in a workflow.
-
-**Flags:**
-- `--unique`, `-u` - Show unique files or classnames instead of individual tests (`file` or `classname`)
-- `--include-jobs`, `-j` - Include which jobs each test failed in
-
-```bash
-# Show all failed tests for a workflow
-circle workflows failed-tests <workflow-id>
-
-# Include which jobs each test failed in
-circle workflows failed-tests <workflow-id> --include-jobs
-
-# Show only unique failing files
-circle workflows failed-tests <workflow-id> --unique file
-
-# Show only unique failing classnames (file + classname)
-circle workflows failed-tests <workflow-id> --unique classname
-```
-
 ### jobs
 
 **Aliases:** `job`, `j`
@@ -237,6 +215,38 @@ circle jobs output 12345 --step 5 --try-extract-summary
 
 # For parallel runs
 circle jobs output 12345 --step 5 --parallel-index 2
+```
+
+### failed-tests
+
+**Aliases:** `ft`
+
+Show failed tests across workflows. Defaults to the latest pipeline for the current branch.
+
+**Flags:**
+- `--pipeline`, `-p` - Pipeline ID or number (defaults to latest pipeline for current branch)
+- `--workflow`, `-w` - Workflow ID(s). Can be specified multiple times.
+- `--unique`, `-u` - Show unique files or classnames instead of individual tests (`file` or `classname`)
+- `--include-jobs`, `-j` - Include which jobs each test failed in
+
+```bash
+# Show failed tests for the latest pipeline on the current branch
+circle failed-tests
+
+# Show failed tests for a specific pipeline
+circle failed-tests --pipeline 123
+
+# Show failed tests for specific workflows
+circle failed-tests --workflow <workflow-id>
+
+# Include which jobs each test failed in
+circle failed-tests --include-jobs
+
+# Show only unique failing files
+circle failed-tests --unique file
+
+# Show only unique failing classnames (file + classname)
+circle failed-tests --unique classname
 ```
 
 ### cache

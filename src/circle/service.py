@@ -271,13 +271,27 @@ class AppService:
 
         return tests
 
-    async def get_workflow_failed_tests(self, workflow_id: str) -> WorkflowFailedTests:
+    async def get_failed_tests(
+        self,
+        pipeline_id_or_number: str | None,
+        workflow_ids: list[str] | None,
+    ) -> list[WorkflowFailedTests]:
         workflows_with_jobs = await self.get_workflow_jobs(
-            None, [workflow_id], statuses={api_types.JobStatus.failed}
+            pipeline_id_or_number,
+            workflow_ids,
+            statuses={api_types.JobStatus.failed},
         )
-        workflow_with_jobs = workflows_with_jobs[0]
 
-        # Fetch tests for all failed jobs concurrently
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(self._get_failed_tests_for_workflow(wj))
+                for wj in workflows_with_jobs
+            ]
+        return [task.result() for task in tasks]
+
+    async def _get_failed_tests_for_workflow(
+        self, workflow_with_jobs: WorkflowWithJobs
+    ) -> WorkflowFailedTests:
         failed_jobs = [j for j in workflow_with_jobs.jobs if j.job_number is not None]
         async with asyncio.TaskGroup() as tg:
             tasks = [

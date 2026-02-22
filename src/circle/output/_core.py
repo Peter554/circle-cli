@@ -37,9 +37,9 @@ class Output(Protocol):
         include_messages: bool,
     ) -> None: ...
 
-    def print_workflow_failed_tests(
+    def print_failed_tests(
         self,
-        workflow_failed_tests: service.WorkflowFailedTests,
+        results: list[service.WorkflowFailedTests],
         unique: UniqueLevel | None,
         include_jobs: bool,
     ) -> None: ...

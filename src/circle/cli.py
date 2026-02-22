@@ -113,15 +113,24 @@ async def workflows_list(
     out.print_workflows(workflows_with_jobs)
 
 
-@workflows_app.command(name="failed-tests")
-async def workflows_failed_tests(
-    workflow_id: Annotated[
-        str,
-        cyclopts.Parameter(
-            help="The workflow ID",
-        ),
-    ],
+@app.command(name="failed-tests", alias=["ft"])
+async def failed_tests(
     *,
+    pipeline_id_or_number: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            name=["--pipeline", "-p"],
+            help="The pipeline ID or number. Defaults to the latest pipeline for the currently checked out branch.",
+        ),
+    ] = None,
+    workflow_ids: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            name=["--workflow", "-w"],
+            help="Workflow ID(s). Can be specified multiple times.",
+            negative=(),
+        ),
+    ] = None,
     unique: Annotated[
         output.UniqueLevel | None,
         cyclopts.Parameter(
@@ -139,12 +148,12 @@ async def workflows_failed_tests(
     ] = False,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
-    """Show unique failed tests across all jobs in a workflow"""
+    """Show failed tests across workflows"""
     _setup_logging(common_flags.log_level)
     app_service = _get_app_service(common_flags)
-    result = await app_service.get_workflow_failed_tests(workflow_id)
+    results = await app_service.get_failed_tests(pipeline_id_or_number, workflow_ids)
     out = output.get_output(common_flags.output_format)
-    out.print_workflow_failed_tests(result, unique, include_jobs)
+    out.print_failed_tests(results, unique, include_jobs)
 
 
 @jobs_app.default

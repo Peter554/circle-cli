@@ -873,10 +873,11 @@ class TestGetWorkflowFailedTests:
         }[num]
 
         service = make_service(mock_api)
-        result = await service.get_workflow_failed_tests("wf-1")
+        results = await service.get_failed_tests(None, ["wf-1"])
 
-        assert result.workflow == wf
-        assert result.failed_tests == {
+        assert len(results) == 1
+        assert results[0].workflow == wf
+        assert results[0].failed_tests == {
             "tests/test_foo.py": {
                 "tests.test_foo": {
                     "test_x": [FailedTestJobInfo(job_number=10, job_name="test-a")],
@@ -917,9 +918,12 @@ class TestGetWorkflowFailedTests:
         }[num]
 
         service = make_service(mock_api)
-        result = await service.get_workflow_failed_tests("wf-1")
+        results = await service.get_failed_tests(None, ["wf-1"])
 
-        job_infos = result.failed_tests["tests/test_foo.py"]["tests.test_foo"]["test_x"]
+        assert len(results) == 1
+        job_infos = results[0].failed_tests["tests/test_foo.py"]["tests.test_foo"][
+            "test_x"
+        ]
         assert len(job_infos) == 2
         assert job_infos == [
             FailedTestJobInfo(job_number=10, job_name="test-a"),
@@ -940,10 +944,11 @@ class TestGetWorkflowFailedTests:
         mock_api.get_job_tests.return_value = [success_test]
 
         service = make_service(mock_api)
-        result = await service.get_workflow_failed_tests("wf-1")
+        results = await service.get_failed_tests(None, ["wf-1"])
 
-        assert result.workflow == wf
-        assert result.failed_tests == {}
+        assert len(results) == 1
+        assert results[0].workflow == wf
+        assert results[0].failed_tests == {}
 
     @pytest.mark.asyncio
     async def test_no_failed_jobs(self):
@@ -954,7 +959,8 @@ class TestGetWorkflowFailedTests:
         mock_api.get_workflow_jobs.return_value = []
 
         service = make_service(mock_api)
-        result = await service.get_workflow_failed_tests("wf-1")
+        results = await service.get_failed_tests(None, ["wf-1"])
 
-        assert result.workflow == wf
-        assert result.failed_tests == {}
+        assert len(results) == 1
+        assert results[0].workflow == wf
+        assert results[0].failed_tests == {}
