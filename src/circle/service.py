@@ -286,16 +286,18 @@ class AppService:
             ]
         tests_lists = [task.result() for task in tasks]
 
-        # Group failed tests across jobs
-        failed_tests: dict[FailedTest, list[FailedTestJobInfo]] = defaultdict(list)
+        # Group failed tests: file -> classname -> name -> job infos
+        failed_tests: dict[
+            str | None, dict[str, dict[str, list[FailedTestJobInfo]]]
+        ] = {}
         for job, tests in zip(failed_jobs, tests_lists, strict=True):
             for test in tests:
                 if test.result != api_types.JobTestResult.failure:
                     continue
-                key = FailedTest(
-                    file=test.file, classname=test.classname, name=test.name
-                )
-                failed_tests[key].append(
+                by_classname = failed_tests.setdefault(test.file, {})
+                by_name = by_classname.setdefault(test.classname, {})
+                job_infos = by_name.setdefault(test.name, [])
+                job_infos.append(
                     FailedTestJobInfo(
                         job_number=job.job_number,
                         job_name=job.name,
@@ -304,7 +306,7 @@ class AppService:
 
         return WorkflowFailedTests(
             workflow=workflow_with_jobs.workflow,
-            failed_tests=dict(failed_tests),
+            failed_tests=failed_tests,
         )
 
     @staticmethod
@@ -392,13 +394,8 @@ class StepAction(_BaseModel):
 
 class WorkflowFailedTests(_BaseModel):
     workflow: api_types.Workflow
-    failed_tests: dict[FailedTest, list[FailedTestJobInfo]]
-
-
-class FailedTest(_BaseModel):
-    file: str | None
-    classname: str
-    name: str
+    # File -> Classname -> Name -> Failed jobs info
+    failed_tests: dict[str | None, dict[str, dict[str, list[FailedTestJobInfo]]]]
 
 
 class FailedTestJobInfo(_BaseModel):

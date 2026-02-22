@@ -1,6 +1,8 @@
 """Shared helpers used across output implementations."""
 
-from .. import api_types
+from collections.abc import Iterable
+
+from .. import api_types, service
 
 
 def build_pipeline_url(pipeline: api_types.Pipeline) -> str:
@@ -36,6 +38,28 @@ def get_commit_subject(pipeline: api_types.Pipeline) -> str:
     if pipeline.vcs and pipeline.vcs.commit and pipeline.vcs.commit.subject:
         return pipeline.vcs.commit.subject
     return ""
+
+
+def format_failed_test_jobs(
+    job_infos: list[service.FailedTestJobInfo],
+) -> str:
+    return ", ".join(
+        f"{ji.job_name} (#{ji.job_number})" if ji.job_number else ji.job_name
+        for ji in job_infos
+    )
+
+
+def collect_unique_jobs(
+    job_infos: Iterable[service.FailedTestJobInfo],
+) -> list[service.FailedTestJobInfo]:
+    seen: set[tuple[int | None, str]] = set()
+    result: list[service.FailedTestJobInfo] = []
+    for ji in job_infos:
+        key = (ji.job_number, ji.job_name)
+        if key not in seen:
+            seen.add(key)
+            result.append(ji)
+    return result
 
 
 def get_job_status_priority(status: api_types.JobStatus) -> int:

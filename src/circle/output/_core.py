@@ -41,6 +41,7 @@ class Output(Protocol):
         self,
         workflow_failed_tests: service.WorkflowFailedTests,
         unique: UniqueLevel | None,
+        include_jobs: bool,
     ) -> None: ...
 
     def print_job_output(

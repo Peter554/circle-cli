@@ -16,6 +16,8 @@ from ._common import (
     build_job_url,
     build_pipeline_url,
     build_workflow_url,
+    collect_unique_jobs,
+    format_failed_test_jobs,
     get_commit_subject,
     get_job_status_priority,
 )
@@ -294,6 +296,7 @@ class PrettyOutput:
         self,
         workflow_failed_tests: service.WorkflowFailedTests,
         unique: UniqueLevel | None,
+        include_jobs: bool,
     ) -> None:
         workflow = workflow_failed_tests.workflow
         failed_tests = workflow_failed_tests.failed_tests
@@ -305,44 +308,80 @@ class PrettyOutput:
         url = build_workflow_url(workflow)
         status = _format_workflow_status(workflow.status)
 
+        total = sum(
+            1
+            for by_cls in failed_tests.values()
+            for by_name in by_cls.values()
+            for _name in by_name
+        )
+
         renderables: list[Text] = [
             Text.from_markup(
                 f"[bold]Workflow:[/bold] {escape(workflow.name)} ({workflow.id})"
             ),
             Text.from_markup(f"[bold]Status:[/bold] {status}"),
-            Text.from_markup(f"[bold]Failed tests:[/bold] {len(failed_tests)}"),
+            Text.from_markup(f"[bold]Failed tests:[/bold] {total}"),
             Text.from_markup(f"[bold]Link:[/bold] {_format_link(url)}"),
         ]
 
-        if unique is not None:
-            grouped = _group_failed_tests(failed_tests, unique)
-            for key, job_infos in grouped.items():
-                jobs_str = _format_failed_test_jobs(job_infos)
+        for file, by_classname in failed_tests.items():
+            file_label = escape(file or "(no file)")
+
+            if unique == UniqueLevel.file:
+                file_count = sum(len(names) for names in by_classname.values())
                 renderables.append(Text())
-                renderables.append(
-                    Text.from_markup(f"[bold]File:[/bold] {escape(key[0] or '')}")
-                )
-                if unique == UniqueLevel.classname:
-                    renderables.append(
-                        Text.from_markup(f"[bold]Classname:[/bold] {escape(key[1])}")
-                    )
-                renderables.append(Text.from_markup(f"[bold]Jobs:[/bold] {jobs_str}"))
-        else:
-            for test, job_infos in failed_tests.items():
-                jobs_str = _format_failed_test_jobs(job_infos)
-                renderables.append(Text())
-                renderables.append(
-                    Text.from_markup(f"[bold]File:[/bold] {escape(test.file or '')}")
-                )
                 renderables.append(
                     Text.from_markup(
-                        f"[bold]Classname:[/bold] {escape(test.classname)}"
+                        f"[bold]{file_label}[/bold] [dim][{file_count} fails][/dim]"
                     )
                 )
-                renderables.append(
-                    Text.from_markup(f"[bold]Test:[/bold] {escape(test.name)}")
+                if include_jobs:
+                    all_jobs = collect_unique_jobs(
+                        ji
+                        for by_name in by_classname.values()
+                        for infos in by_name.values()
+                        for ji in infos
+                    )
+                    renderables.append(
+                        Text(f"  Jobs: {format_failed_test_jobs(all_jobs)}")
+                    )
+                continue
+
+            file_count = sum(len(names) for names in by_classname.values())
+            renderables.append(Text())
+            renderables.append(
+                Text.from_markup(
+                    f"[bold]{file_label}[/bold] [dim][{file_count} fails][/dim]"
                 )
-                renderables.append(Text.from_markup(f"[bold]Jobs:[/bold] {jobs_str}"))
+            )
+
+            for classname, by_name in by_classname.items():
+                if unique == UniqueLevel.classname:
+                    renderables.append(
+                        Text.from_markup(
+                            f"  {escape(classname)} [dim][{len(by_name)} fails][/dim]"
+                        )
+                    )
+                    if include_jobs:
+                        all_jobs = collect_unique_jobs(
+                            ji for infos in by_name.values() for ji in infos
+                        )
+                        renderables.append(
+                            Text(f"    Jobs: {format_failed_test_jobs(all_jobs)}")
+                        )
+                    continue
+
+                renderables.append(
+                    Text.from_markup(
+                        f"  {escape(classname)} [dim][{len(by_name)} fails][/dim]"
+                    )
+                )
+                for name, job_infos in by_name.items():
+                    renderables.append(Text(f"    {name}"))
+                    if include_jobs:
+                        renderables.append(
+                            Text(f"      Jobs: {format_failed_test_jobs(job_infos)}")
+                        )
 
         panel = Panel(
             Group(*renderables),
@@ -596,37 +635,6 @@ def _format_test_result(result: api_types.JobTestResult) -> str:
     elif result == api_types.JobTestResult.skipped:
         return f"[yellow]{result}[/yellow]"
     return str(result)
-
-
-def _format_failed_test_jobs(
-    job_infos: list[service.FailedTestJobInfo],
-) -> str:
-    return ", ".join(
-        f"{escape(ji.job_name)} (#{ji.job_number})"
-        if ji.job_number
-        else escape(ji.job_name)
-        for ji in job_infos
-    )
-
-
-def _group_failed_tests(
-    failed_tests: dict[service.FailedTest, list[service.FailedTestJobInfo]],
-    unique: UniqueLevel,
-) -> dict[tuple[str | None, str], list[service.FailedTestJobInfo]]:
-    grouped: dict[tuple[str | None, str], list[service.FailedTestJobInfo]] = {}
-    for test, job_infos in failed_tests.items():
-        if unique == UniqueLevel.file:
-            key = (test.file, "")
-        else:
-            key = (test.file, test.classname)
-        if key not in grouped:
-            grouped[key] = []
-        seen = {(ji.job_number, ji.job_name) for ji in grouped[key]}
-        for ji in job_infos:
-            if (ji.job_number, ji.job_name) not in seen:
-                grouped[key].append(ji)
-                seen.add((ji.job_number, ji.job_name))
-    return grouped
 
 
 def _print_pipeline_panel(p: service.PipelineWithWorkflows) -> None:

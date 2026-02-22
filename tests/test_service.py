@@ -9,7 +9,6 @@ from circle.service import (
     CURRENT_BRANCH,
     AppError,
     AppService,
-    FailedTest,
     FailedTestJobInfo,
     PipelineWithWorkflows,
     StepAction,
@@ -878,16 +877,16 @@ class TestGetWorkflowFailedTests:
 
         assert result.workflow == wf
         assert result.failed_tests == {
-            FailedTest(
-                file="tests/test_foo.py", classname="tests.test_foo", name="test_x"
-            ): [
-                FailedTestJobInfo(job_number=10, job_name="test-a"),
-            ],
-            FailedTest(
-                file="tests/test_bar.py", classname="tests.test_bar", name="test_y"
-            ): [
-                FailedTestJobInfo(job_number=11, job_name="test-b"),
-            ],
+            "tests/test_foo.py": {
+                "tests.test_foo": {
+                    "test_x": [FailedTestJobInfo(job_number=10, job_name="test-a")],
+                },
+            },
+            "tests/test_bar.py": {
+                "tests.test_bar": {
+                    "test_y": [FailedTestJobInfo(job_number=11, job_name="test-b")],
+                },
+            },
         }
 
     @pytest.mark.asyncio
@@ -920,11 +919,9 @@ class TestGetWorkflowFailedTests:
         service = make_service(mock_api)
         result = await service.get_workflow_failed_tests("wf-1")
 
-        key = FailedTest(
-            file="tests/test_foo.py", classname="tests.test_foo", name="test_x"
-        )
-        assert len(result.failed_tests[key]) == 2
-        assert result.failed_tests[key] == [
+        job_infos = result.failed_tests["tests/test_foo.py"]["tests.test_foo"]["test_x"]
+        assert len(job_infos) == 2
+        assert job_infos == [
             FailedTestJobInfo(job_number=10, job_name="test-a"),
             FailedTestJobInfo(job_number=11, job_name="test-b"),
         ]

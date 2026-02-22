@@ -125,10 +125,14 @@ Show unique failed tests across all jobs in a workflow.
 
 **Flags:**
 - `--unique`, `-u` - Show unique files or classnames instead of individual tests (`file` or `classname`)
+- `--include-jobs`, `-j` - Include which jobs each test failed in
 
 ```bash
 # Show all failed tests for a workflow
 circle workflows failed-tests <workflow-id>
+
+# Include which jobs each test failed in
+circle workflows failed-tests <workflow-id> --include-jobs
 
 # Show only unique failing files
 circle workflows failed-tests <workflow-id> --unique file

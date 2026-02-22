@@ -130,6 +130,14 @@ async def workflows_failed_tests(
             help="Show unique files or classnames instead of individual tests.",
         ),
     ] = None,
+    include_jobs: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name=["--include-jobs", "-j"],
+            help="Include which jobs each test failed in.",
+            negative=(),
+        ),
+    ] = False,
     common_flags: flags.CommonFlags = flags.CommonFlags(),
 ) -> None:
     """Show unique failed tests across all jobs in a workflow"""
@@ -137,7 +145,7 @@ async def workflows_failed_tests(
     app_service = _get_app_service(common_flags)
     result = await app_service.get_workflow_failed_tests(workflow_id)
     out = output.get_output(common_flags.output_format)
-    out.print_workflow_failed_tests(result, unique)
+    out.print_workflow_failed_tests(result, unique, include_jobs)
 
 
 @jobs_app.default
