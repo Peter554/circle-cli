@@ -1,6 +1,5 @@
 import dataclasses
 import functools
-from datetime import datetime, timedelta, timezone
 
 from . import api_types, cache
 
@@ -91,17 +90,7 @@ class CacheManager:
         cache_key = f"pipeline:{pipeline_id}:workflows"
 
         # No concept of pipeline completion.
-        # Infer completion based on workflows.
-        # Cache indefinitely only if all workflows stopped more than one minute ago.
-        finished = workflows and all(
-            _workflow_is_finished(w.status)
-            and w.stopped_at is not None
-            and w.stopped_at < datetime.now(timezone.utc) - timedelta(minutes=1)
-            for w in workflows
-        )
-        ttl = self.finished_ttl_seconds if finished else self.in_progress_ttl_seconds
-
-        self.cache.set(cache_key, workflows, ttl=ttl)
+        self.cache.set(cache_key, workflows, ttl=self.in_progress_ttl_seconds)
 
         for workflow in workflows:
             self.set_workflow(workflow)

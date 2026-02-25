@@ -6,8 +6,8 @@ import time_machine
 from circle import api_types
 from circle.cache_manager import CacheManager
 from tests.conftest import (
-    FakeCache,
     PIPELINE_CREATED_AT,
+    FakeCache,
     make_job,
     make_job_details,
     make_job_output_message,
@@ -16,7 +16,6 @@ from tests.conftest import (
     make_v1_job_details,
     make_workflow,
 )
-
 
 FINISHED_WORKFLOW_STATUSES = {
     api_types.WorkflowStatus.success,
@@ -181,7 +180,7 @@ class TestPipelineWorkflows:
         assert cm.get_workflow(wf.id) == wf
 
     @time_machine.travel(PIPELINE_CREATED_AT + timedelta(minutes=10))
-    def test_stopped_over_one_minute_ago_gets_long_ttl(self):
+    def test_stopped_over_one_minute_ago_gets_short_ttl(self):
         now = datetime.now(timezone.utc)
         spy = FakeCache()
         cm = CacheManager(cache=spy)
@@ -189,7 +188,7 @@ class TestPipelineWorkflows:
             "pipe-1",
             [make_workflow(stopped_at=now - timedelta(minutes=1))],
         )
-        assert spy.ttls["pipeline:pipe-1:workflows"] == cm.finished_ttl_seconds
+        assert spy.ttls["pipeline:pipe-1:workflows"] == cm.in_progress_ttl_seconds
 
     @time_machine.travel(PIPELINE_CREATED_AT + timedelta(minutes=10))
     def test_stopped_under_one_minute_ago_gets_short_ttl(self):
