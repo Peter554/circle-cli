@@ -19,6 +19,13 @@ dependencies = [
 [project.scripts]
 circle = "circle.cli:main"
 
+[project.optional-dependencies]
+serve = [
+    "jinja2>=3.1.6",
+    "starlette>=0.52.1",
+    "uvicorn>=0.41.0",
+]
+
 [build-system]
 requires = ["uv_build>=0.9.1,<0.10.0"]
 build-backend = "uv_build"
@@ -32,3 +39,6 @@ dev = [
     "time-machine>=3.2.0",
     "ty>=0.0.14",
 ]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["jinja2"]

@@ -7,6 +7,13 @@ from rich.console import Console
 from rich.prompt import Confirm
 from rich.traceback import install as install_rich_traceback
 
+try:
+    from . import server
+
+    SERVE_ENABLED = True
+except ImportError:
+    SERVE_ENABLED = False
+
 from . import (
     api,
     api_types,
@@ -424,6 +431,14 @@ _SKILL_DEBUG_PARAGRAPH = """
 
 If any `circle` command fails or returns an unexpected error, always report the full error message to the user before continuing.
 """
+
+if SERVE_ENABLED:
+
+    @app.command(name="serve")
+    def serve():
+        """Run a web server"""
+
+        server.serve()
 
 
 def _setup_logging(log_level: str) -> None:
