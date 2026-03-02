@@ -1,17 +1,16 @@
-import pathlib
 import webbrowser
 
 import uvicorn
+from htpy.starlette import HtpyResponse
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Route
-from starlette.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory=pathlib.Path(__file__).parent / "templates")
+from .pages.home import home as home_page
 
 
-async def home(request: Request):
-    return templates.TemplateResponse(request, "index.html")
+async def home(request: Request) -> HtpyResponse:
+    return HtpyResponse(home_page())
 
 
 app = Starlette(
@@ -23,5 +22,6 @@ app = Starlette(
 
 
 def serve():
+    # TODO Flags?
     webbrowser.open("http://localhost:5000")
     uvicorn.run("circle.server.main:app", port=5000, log_level="info")

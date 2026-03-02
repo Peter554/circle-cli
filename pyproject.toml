@@ -21,7 +21,7 @@ circle = "circle.cli:main"
 
 [project.optional-dependencies]
 serve = [
-    "jinja2>=3.1.6",
+    "htpy>=25.12.0",
     "starlette>=0.52.1",
     "uvicorn>=0.41.0",
 ]
@@ -39,6 +39,3 @@ dev = [
     "time-machine>=3.2.0",
     "ty>=0.0.14",
 ]
-
-[tool.deptry.per_rule_ignores]
-DEP002 = ["jinja2"]
